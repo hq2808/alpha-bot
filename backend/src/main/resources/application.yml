@@ -32,32 +32,17 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-# LangChain4j - Groq (configured via OpenAI-compatible endpoint)
-langchain4j:
-  open-ai:
-    chat-model:
-      api-key: ${GROQ_API_KEY:}
-      base-url: https://api.groq.com/openai/v1
-      model-name: llama3-8b-8192
-      temperature: 0.1
-      max-tokens: 512
-  ollama:
-    chat-model:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model-name: llama3.1:8b
-      temperature: 0.1
-
 # App-specific settings
 alpha-bot:
   crawler:
-    interval-ms: 300000 # 5 minutes
-  ai:
-    provider: groq # Use 'ollama' if no API key
+    interval-ms: 300000 # 5 minutes (crawl every 5 min)
+    # Vietnamese stock news sources (free, no API key needed)
+    # CafeF, VnExpress kinh te, VietnamFinance, Dau tu, Thanh nien kinh te
   telegram:
-    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}  # Optional — leave blank to disable
     chat-id: ${TELEGRAM_CHAT_ID:}
   alert:
-    sentiment-threshold: 0.7  # Alert when score > 0.7 (Bullish)
+    sentiment-threshold: 0.6  # Alert when score >= 0.6
 
 server:
   port: 8080

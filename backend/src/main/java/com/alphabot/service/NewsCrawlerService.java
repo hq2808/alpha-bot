@@ -13,14 +13,17 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.net.URL;
+import java.io.ByteArrayInputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Scheduled service that crawls RSS feeds, analyzes sentiment via AI,
- * and pushes real-time updates via WebSocket.
+ * Scheduled crawler for Vietnamese stock market RSS feeds.
+ * Uses keyword-based sentiment analysis — no API keys required.
  */
 @Service
 @Slf4j
@@ -32,20 +35,23 @@ public class NewsCrawlerService {
     private final SimpMessagingTemplate messagingTemplate;
     private final AlertService alertService;
 
-    @Value("${alpha-bot.alert.sentiment-threshold:0.7}")
+    @Value("${alpha-bot.alert.sentiment-threshold:0.6}")
     private double alertThreshold;
 
-    // --- News Feed Sources ---
+    // ── Verified Working RSS Feeds (tested from Docker) ──────────────────
     private static final List<Map<String, String>> FEEDS = List.of(
+            // ✅ Vietnamese — confirmed working
+            Map.of("source", "VnExpress", "url", "https://vnexpress.net/rss/kinh-doanh.rss"),
+            Map.of("source", "VnEconomy", "url", "https://vneconomy.vn/chung-khoan.rss"),
+            // ✅ International — reliable fallback with financial coverage
             Map.of("source", "Reuters", "url", "https://feeds.reuters.com/reuters/businessNews"),
-            Map.of("source", "CNBC", "url", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
-            Map.of("source", "Yahoo Finance", "url", "https://finance.yahoo.com/rss/topstories"),
-            Map.of("source", "CoinDesk", "url", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
-            Map.of("source", "MarketWatch", "url", "https://feeds.content.dowjones.io/public/rss/mw_topstories"));
+            Map.of("source", "CNBC", "url", "https://www.cnbc.com/id/100003114/device/rss/rss.html"));
 
-    /**
-     * Main crawl job — runs every 5 minutes.
-     */
+    // Browser User-Agent to avoid being blocked by Vietnamese news sites
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/121.0.0.0 Safari/537.36";
+
     @Scheduled(fixedDelayString = "${alpha-bot.crawler.interval-ms:300000}")
     public void crawlAll() {
         log.info("[Crawler] Starting crawl cycle...");
@@ -53,17 +59,35 @@ public class NewsCrawlerService {
             try {
                 crawlFeed(feed.get("source"), feed.get("url"));
             } catch (Exception e) {
-                log.warn("[Crawler] Failed to crawl {}: {}", feed.get("source"), e.getMessage());
+                log.warn("[Crawler] Failed to crawl {}: {} — {}", feed.get("source"), e.getMessage(),
+                        e.getCause() != null ? e.getCause().getMessage() : "no cause");
             }
         });
         log.info("[Crawler] Crawl cycle complete.");
     }
 
     private void crawlFeed(String source, String feedUrl) throws Exception {
-        SyndFeedInput input = new SyndFeedInput();
+        // Fetch with browser User-Agent so Vietnamese sites don't block us
+        HttpURLConnection conn = (HttpURLConnection) URI.create(feedUrl).toURL().openConnection();
+        conn.setRequestProperty("User-Agent", USER_AGENT);
+        conn.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml, */*");
+        conn.setConnectTimeout(10_000);
+        conn.setReadTimeout(15_000);
+
+        // Read and sanitize: Vietnamese sites embed invalid HTML in RSS descriptions
+        // e.g. VnExpress uses </br> (not valid XML) which crashes Rome parser
+        byte[] rawBytes = conn.getInputStream().readAllBytes();
+        String rawXml = new String(rawBytes, StandardCharsets.UTF_8)
+                .replace("</br>", "") // Invalid closing br tag
+                .replace("<br>", " "); // Unclosed br tag — convert to space
+
+        // Fix unescaped & in URLs inside CDATA (common in Vietnamese RSS)
+        rawXml = rawXml.replaceAll("&(?!amp;|lt;|gt;|quot;|apos;|#)", "&amp;");
+
         SyndFeed feed;
-        try (XmlReader reader = new XmlReader(new URL(feedUrl))) {
-            feed = input.build(reader);
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(rawXml.getBytes(StandardCharsets.UTF_8));
+                XmlReader reader = new XmlReader(bais)) {
+            feed = new SyndFeedInput().build(reader);
         }
 
         int newItems = 0;
@@ -72,17 +96,18 @@ public class NewsCrawlerService {
             if (url == null || newsArticleRepository.existsByUrl(url))
                 continue;
 
-            // Build the article
             NewsArticle article = new NewsArticle();
             article.setUrl(url);
             article.setTitle(entry.getTitle());
-            article.setDescription(entry.getDescription() != null ? entry.getDescription().getValue() : null);
+            article.setDescription(entry.getDescription() != null
+                    ? entry.getDescription().getValue()
+                    : null);
             article.setSource(source);
             article.setPublishedAt(entry.getPublishedDate() != null
                     ? entry.getPublishedDate().toInstant()
                     : Instant.now());
 
-            // AI Analysis (cached by title hash)
+            // Keyword-based sentiment (offline, no API key)
             var result = sentimentAnalyzer.analyze(article.getTitle(), article.getDescription());
             article.setSentimentScore(result.score());
             article.setMentionedTickers(result.tickers());
@@ -91,14 +116,15 @@ public class NewsCrawlerService {
             newsArticleRepository.save(article);
             newItems++;
 
-            // Push to WebSocket subscribers
+            // Push real-time to WebSocket subscribers
             messagingTemplate.convertAndSend("/topic/news", article);
 
-            // Check alert threshold -> send Telegram notification
+            // Optional Telegram alert (only if bot-token is configured)
             if (result.isBullish(alertThreshold)) {
                 alertService.sendBullishAlert(article);
             }
         }
+
         if (newItems > 0) {
             log.info("[Crawler] {} | {} new articles saved.", source, newItems);
         }

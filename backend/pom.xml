@@ -20,7 +20,6 @@
 
     <properties>
         <java.version>21</java.version>
-        <langchain4j.version>0.29.0</langchain4j.version>
     </properties>
 
     <dependencies>
@@ -61,23 +60,28 @@
             <artifactId>flyway-core</artifactId>
         </dependency>
 
-        <!-- LangChain4j - AI Integration -->
+        <!-- Fix JAXB ClassNotFoundException: hibernate-core pulls in jackson-module-jaxb-annotations
+             which requires javax.xml.bind (removed from JDK since Java 11). Exclude it. -->
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>6.4.4.Final</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.module</groupId>
+                    <artifactId>jackson-module-jaxb-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        <!-- Groq (via OpenAI-compatible API) -->
+
+        <!-- JAXB API (javax.xml.bind namespace) — removed from JDK since Java 11.
+             jackson-module-jaxb-annotations (pulled in by hibernate-core + telegrambots)
+             requires javax.xml.bind.annotation.XmlElement at runtime.
+             Exclusions alone are not enough because multiple starters pull this in. -->
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
-        <!-- Ollama (local AI) -->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-ollama-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.1</version>
         </dependency>
 
         <!-- RSS Feed Parsing -->
@@ -87,7 +91,7 @@
             <version>2.1.0</version>
         </dependency>
 
-        <!-- Telegram Bot for Alerts -->
+        <!-- Telegram Bot — optional, only sends if bot-token is configured -->
         <dependency>
             <groupId>org.telegram</groupId>
             <artifactId>telegrambots-spring-boot-starter</artifactId>
@@ -114,6 +118,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        
     </dependencies>
 
     <build>
