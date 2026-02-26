@@ -1,0 +1,73 @@
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+*.env.local
+
+# ===========================
+# Backend (Spring Boot / Java)
+# ===========================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/.mvn/wrapper/maven-wrapper.properties
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# VS Code Java
+.vscode/
+*.code-workspace
+
+# ===========================
+# Frontend (Angular / Node)
+# ===========================
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.cache/
+
+# Keep package-lock.json (important for reproducible builds)
+# !frontend/package-lock.json
+
+# ===========================
+# Docker
+# ===========================
+# Don't ignore docker-compose.yml, but ignore override files
+docker-compose.override.yml
+
+# ===========================
+# OS & Editors
+# ===========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+npm-debug.log*

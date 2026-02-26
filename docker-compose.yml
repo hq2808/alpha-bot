@@ -1,0 +1,82 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: alpha-bot-postgres
+    environment:
+      POSTGRES_DB: alphabot
+      POSTGRES_USER: alphabot
+      POSTGRES_PASSWORD: alphabot123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - alpha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphabot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: alpha-bot-redis
+    command: redis-server --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - alpha-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alpha-bot-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/alphabot
+      SPRING_DATASOURCE_USERNAME: alphabot
+      SPRING_DATASOURCE_PASSWORD: alphabot123
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: redis123
+      # Optional: Groq API key for AI (leave blank to use Ollama local)
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - alpha-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alpha-bot-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - alpha-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  alpha-network:
+    driver: bridge
