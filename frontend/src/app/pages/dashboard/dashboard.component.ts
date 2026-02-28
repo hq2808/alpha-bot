@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NewsPanelComponent } from '../../components/news-panel/news-panel.component';
-import { SignalService, NewsArticle } from '../../services/signal.service';
+import { SignalService, NewsArticle, SENTIMENT_THRESHOLDS } from '../../services/signal.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -36,7 +36,7 @@ import { SignalService, NewsArticle } from '../../services/signal.service';
       <div class="main-grid">
         <!-- Left: Live News Feed -->
         <section class="panel">
-          <app-news-panel />
+          <app-news-panel [articles]="articles" />
         </section>
 
         <!-- Right: Sidebar Signals -->
@@ -151,11 +151,11 @@ export class DashboardComponent implements OnInit {
   }
 
   get bullishCount(): number {
-    return this.articles.filter(a => a.sentimentScore >= 0.5).length;
+    return this.articles.filter(a => a.sentimentScore >= SENTIMENT_THRESHOLDS.BULLISH).length;
   }
 
   get bearishCount(): number {
-    return this.articles.filter(a => a.sentimentScore <= -0.5).length;
+    return this.articles.filter(a => a.sentimentScore <= SENTIMENT_THRESHOLDS.BEARISH).length;
   }
 
   get avgSentiment(): number {
@@ -165,7 +165,7 @@ export class DashboardComponent implements OnInit {
 
   get topBullish(): NewsArticle[] {
     return [...this.articles]
-      .filter(a => a.sentimentScore >= 0.5)
+      .filter(a => a.sentimentScore >= SENTIMENT_THRESHOLDS.BULLISH)
       .sort((a, b) => b.sentimentScore - a.sentimentScore)
       .slice(0, 5);
   }

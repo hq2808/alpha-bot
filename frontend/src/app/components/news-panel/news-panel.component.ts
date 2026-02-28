@@ -1,23 +1,20 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatBadgeModule } from '@angular/material/badge';
 import { Subscription } from 'rxjs';
 import { SignalService, NewsArticle } from '../../services/signal.service';
 
 @Component({
-    selector: 'app-news-panel',
-    standalone: true,
-    imports: [CommonModule, MatCardModule, MatChipsModule, MatBadgeModule],
-    template: `
+  selector: 'app-news-panel',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     <div class="news-panel">
       <h2 class="panel-title">📡 Live Intelligence Feed
         <span class="badge" [class.pulse]="liveCount > 0">{{ liveCount }} NEW</span>
       </h2>
 
       <div class="news-list">
-        @for (article of articles; track article.id) {
+        @for (article of displayArticles; track article.id) {
           <div class="news-card" [class]="signal.getSentimentClass(article.sentimentScore)">
             <div class="card-header">
               <span class="source">{{ article.source }}</span>
@@ -46,7 +43,7 @@ import { SignalService, NewsArticle } from '../../services/signal.service';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .news-panel { padding: 16px; }
     .panel-title { display: flex; align-items: center; gap: 12px; font-size: 1.2rem; }
     .badge { background: #e53935; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
@@ -67,29 +64,44 @@ import { SignalService, NewsArticle } from '../../services/signal.service';
     .sentiment.neutral { color: #aaa; }
   `]
 })
-export class NewsPanelComponent implements OnInit, OnDestroy {
-    articles: NewsArticle[] = [];
-    liveCount = 0;
-    private subs: Subscription[] = [];
+export class NewsPanelComponent implements OnInit, OnDestroy, OnChanges {
+  /** If provided by parent (Dashboard), avoids a duplicate API call. */
+  @Input() articles: NewsArticle[] | null = null;
 
-    constructor(public signal: SignalService) { }
+  private _articles: NewsArticle[] = [];
+  liveCount = 0;
+  private subs: Subscription[] = [];
 
-    ngOnInit(): void {
-        // Initial load
-        this.subs.push(
-            this.signal.getLatestNews().subscribe(news => this.articles = news)
-        );
+  constructor(public signal: SignalService) { }
 
-        // Real-time updates via WebSocket
-        this.subs.push(
-            this.signal.getLiveNews().subscribe((article: NewsArticle) => {
-                this.articles = [article, ...this.articles.slice(0, 19)]; // keep last 20
-                this.liveCount++;
-            })
-        );
+  get displayArticles(): NewsArticle[] {
+    return this._articles;
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['articles'] && this.articles) {
+      this._articles = [...this.articles];
+    }
+  }
+
+  ngOnInit(): void {
+    // Only fetch independently if parent didn't provide articles
+    if (!this.articles) {
+      this.subs.push(
+        this.signal.getLatestNews().subscribe(news => this._articles = news)
+      );
     }
 
-    ngOnDestroy(): void {
-        this.subs.forEach(s => s.unsubscribe());
-    }
+    // Real-time updates via WebSocket — always active
+    this.subs.push(
+      this.signal.getLiveNews().subscribe((article: NewsArticle) => {
+        this._articles = [article, ...this._articles.slice(0, 19)];
+        this.liveCount++;
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subs.forEach(s => s.unsubscribe());
+  }
 }

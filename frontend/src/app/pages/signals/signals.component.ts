@@ -285,7 +285,7 @@ export class SignalsComponent implements OnInit, OnDestroy {
 
           const candleSeries = chart.addCandlestickSeries({
             upColor: '#3fb950', downColor: '#f85149', borderVisible: false, wickUpColor: '#3fb950', wickDownColor: '#f85149',
-            priceFormat: { type: 'custom', minMove: 0.01, formatter: (p: number) => (p / 1000).toFixed(2).replace('.', ',') }
+            priceFormat: { type: 'custom', minMove: 0.01, formatter: (p: number) => this.signal.formatPrice(p) }
           });
 
           // Format for lightweight-charts

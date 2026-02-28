@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import { RxStomp } from '@stomp/rx-stomp';
 import { HttpClient } from '@angular/common/http';
-import { Observable, shareReplay, of } from 'rxjs';
+import { Observable, of, map } from 'rxjs';
 import { tap } from 'rxjs/operators';
+
+// ── Domain Models ─────────────────────────────────────────────────────────────
 
 export interface NewsArticle {
     id: number;
@@ -38,79 +40,81 @@ export interface MarketData {
     volume: number;
 }
 
+export interface WatchlistItem {
+    id: number;
+    ticker: string;
+    createdAt: string;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const SENTIMENT_THRESHOLDS = {
+    BULLISH: 0.5,
+    BEARISH: -0.5,
+    STRONG_BULLISH: 0.7,
+};
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
 @Injectable({ providedIn: 'root' })
 export class SignalService {
     private readonly stomp = new RxStomp();
-    private readonly latestNews$ = this.http.get<NewsArticle[]>('/api/news/latest').pipe(shareReplay(1));
     private historicalDataCache: { [ticker: string]: MarketData[] } = {};
     private cacheTimestamp: number = 0;
     private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
     constructor(private http: HttpClient) {
-        // Connect WebSocket to Spring Boot backend
         this.stomp.configure({
             brokerURL: `ws://${window.location.hostname}:8080/ws/websocket`,
         });
         this.stomp.activate();
     }
 
-    /**
-     * Observable of the latest news articles from REST API (initial load).
-     */
+    /** Latest news articles from REST API. */
     getLatestNews(filterByWatchlist = false): Observable<NewsArticle[]> {
         return this.http.get<NewsArticle[]>(`/api/news/latest?filterByWatchlist=${filterByWatchlist}`);
     }
 
     /**
-     * Observable stream of real-time news articles via WebSocket.
-     * Subscribe to receive live updates as the crawler discovers new articles.
+     * Real-time news stream via WebSocket.
+     * Properly parses the STOMP message body to NewsArticle.
      */
     getLiveNews(): Observable<NewsArticle> {
         return this.stomp.watch('/topic/news').pipe(
-            // Map the STOMP message body (JSON string) to NewsArticle object
-            // Using shareReplay to prevent multiple WebSocket subscriptions
-        ) as any;
+            map(msg => JSON.parse(msg.body) as NewsArticle)
+        );
     }
 
-    /**
-     * Get bullish articles above a given sentiment threshold.
-     */
-    getBullishNews(threshold = 0.5, filterByWatchlist = false): Observable<NewsArticle[]> {
+    /** Bullish articles above a given sentiment threshold. */
+    getBullishNews(threshold = SENTIMENT_THRESHOLDS.BULLISH, filterByWatchlist = false): Observable<NewsArticle[]> {
         return this.http.get<NewsArticle[]>(`/api/news/bullish?threshold=${threshold}&filterByWatchlist=${filterByWatchlist}`);
     }
 
-    /**
-     * Get aggregated market signals for trending tickers.
-     */
+    /** Aggregated market signals for trending tickers. */
     getMarketSignals(): Observable<TickerSignal[]> {
         return this.http.get<TickerSignal[]>('/api/market/signals');
     }
 
-    /**
-     * Get historical market data for chart
-     */
+    /** Historical OHLCV data for a single ticker. */
     getHistoricalData(ticker: string): Observable<MarketData[]> {
         return this.http.get<MarketData[]>(`/api/market-data/${ticker}`);
     }
 
     /**
-     * Get historical market data for multiple tickers (Batch API)
-     * Implements session caching strategy.
+     * Historical OHLCV data for multiple tickers (Batch API).
+     * Implements in-memory TTL caching (5 min).
      */
     getHistoricalDataBatch(tickers: string[]): Observable<{ [ticker: string]: MarketData[] }> {
-        if (!tickers || tickers.length === 0) {
-            return of({});
-        }
+        if (!tickers || tickers.length === 0) return of({});
 
         const now = Date.now();
-        if (now - this.cacheTimestamp < this.CACHE_TTL_MS && Object.keys(this.historicalDataCache).length > 0) {
-            // Check if all requested tickers are in cache
-            const allCached = tickers.every(t => this.historicalDataCache[t]);
-            if (allCached) {
-                const result: { [ticker: string]: MarketData[] } = {};
-                tickers.forEach(t => result[t] = this.historicalDataCache[t]);
-                return of(result);
-            }
+        const cacheValid = now - this.cacheTimestamp < this.CACHE_TTL_MS;
+        const allCached = tickers.every(t => this.historicalDataCache[t]);
+
+        if (cacheValid && allCached) {
+            const result: { [ticker: string]: MarketData[] } = {};
+            tickers.forEach(t => result[t] = this.historicalDataCache[t]);
+            return of(result);
         }
 
         return this.http.post<{ [ticker: string]: MarketData[] }>('/api/market-data/batch', tickers).pipe(
@@ -121,43 +125,47 @@ export class SignalService {
         );
     }
 
-    /**
-     * Watchlist API calls
-     */
-    getWatchlist(): Observable<any[]> {
-        return this.http.get<any[]>('/api/watchlist');
+    // ── Watchlist ──────────────────────────────────────────────────────────────
+
+    getWatchlist(): Observable<WatchlistItem[]> {
+        return this.http.get<WatchlistItem[]>('/api/watchlist');
     }
 
-    addToWatchlist(ticker: string): Observable<any> {
-        return this.http.post<any>(`/api/watchlist/${ticker}`, {});
+    addToWatchlist(ticker: string): Observable<WatchlistItem> {
+        return this.http.post<WatchlistItem>(`/api/watchlist/${ticker}`, {});
     }
 
-    removeFromWatchlist(ticker: string): Observable<any> {
-        return this.http.delete<any>(`/api/watchlist/${ticker}`);
+    removeFromWatchlist(ticker: string): Observable<void> {
+        return this.http.delete<void>(`/api/watchlist/${ticker}`);
     }
 
-    /**
-     * Chat API
-     */
-    chat(message: string): Observable<any> {
-        return this.http.post<any>('/api/chat', { message });
+    // ── Chat ───────────────────────────────────────────────────────────────────
+
+    chat(message: string): Observable<{ response: string }> {
+        return this.http.post<{ response: string }>('/api/chat', { message });
     }
 
-    /**
-     * Get sentiment color class for Angular Material theming.
-     */
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /** CSS class based on sentiment score. */
     getSentimentClass(score: number): string {
-        if (score >= 0.7) return 'bullish';
-        if (score <= -0.5) return 'bearish';
+        if (score >= SENTIMENT_THRESHOLDS.STRONG_BULLISH) return 'bullish';
+        if (score <= SENTIMENT_THRESHOLDS.BEARISH) return 'bearish';
         return 'neutral';
     }
 
-    /**
-     * Format sentiment score for display.
-     */
+    /** Formatted sentiment label with emoji. */
     formatSentiment(score: number): string {
-        if (score >= 0.7) return `📈 Bullish (+${score.toFixed(2)})`;
-        if (score <= -0.5) return `📉 Bearish (${score.toFixed(2)})`;
+        if (score >= SENTIMENT_THRESHOLDS.STRONG_BULLISH) return `📈 Bullish (+${score.toFixed(2)})`;
+        if (score <= SENTIMENT_THRESHOLDS.BEARISH) return `📉 Bearish (${score.toFixed(2)})`;
         return `➡️ Neutral (${score.toFixed(2)})`;
+    }
+
+    /**
+     * Shared price formatter for lightweight-charts.
+     * Converts raw number (e.g. 92900) to "92,90" VN-style display.
+     */
+    formatPrice(p: number): string {
+        return (p / 1000).toFixed(2).replace('.', ',');
     }
 }

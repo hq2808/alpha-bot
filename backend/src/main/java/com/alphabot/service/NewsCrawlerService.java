@@ -1,7 +1,9 @@
 package com.alphabot.service;
 
 import com.alphabot.entity.NewsArticle;
+import com.alphabot.entity.RssFeed;
 import com.alphabot.repository.NewsArticleRepository;
+import com.alphabot.repository.RssFeedRepository;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
@@ -19,7 +21,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Scheduled crawler for Vietnamese stock market RSS feeds.
@@ -34,18 +35,10 @@ public class NewsCrawlerService {
     private final SentimentAnalyzerService sentimentAnalyzer;
     private final SimpMessagingTemplate messagingTemplate;
     private final AlertService alertService;
+    private final RssFeedRepository rssFeedRepository;
 
     @Value("${alpha-bot.alert.sentiment-threshold:0.6}")
     private double alertThreshold;
-
-    // ── Verified Working RSS Feeds (tested from Docker) ──────────────────
-    private static final List<Map<String, String>> FEEDS = List.of(
-            // ✅ Vietnamese — confirmed working
-            Map.of("source", "VnExpress", "url", "https://vnexpress.net/rss/kinh-doanh.rss"),
-            Map.of("source", "VnEconomy", "url", "https://vneconomy.vn/chung-khoan.rss"),
-            // ✅ International — reliable fallback with financial coverage
-            Map.of("source", "Reuters", "url", "https://feeds.reuters.com/reuters/businessNews"),
-            Map.of("source", "CNBC", "url", "https://www.cnbc.com/id/100003114/device/rss/rss.html"));
 
     // Browser User-Agents to avoid being blocked by Vietnamese news sites
     private static final List<String> USER_AGENTS = List.of(
@@ -56,12 +49,17 @@ public class NewsCrawlerService {
 
     @Scheduled(fixedDelayString = "${alpha-bot.crawler.interval-ms:300000}")
     public void crawlAll() {
-        log.info("[Crawler] Starting crawl cycle...");
-        FEEDS.forEach(feed -> {
+        List<RssFeed> activeFeeds = rssFeedRepository.findByIsActiveTrue();
+        if (activeFeeds.isEmpty()) {
+            log.warn("[Crawler] No active RSS feeds found in DB. Skipping crawl cycle.");
+            return;
+        }
+        log.info("[Crawler] Starting crawl cycle with {} active feeds...", activeFeeds.size());
+        activeFeeds.forEach(feed -> {
             try {
-                crawlFeed(feed.get("source"), feed.get("url"));
+                crawlFeed(feed.getName(), feed.getUrl());
             } catch (Exception e) {
-                log.warn("[Crawler] Failed to crawl {}: {} — {}", feed.get("source"), e.getMessage(),
+                log.warn("[Crawler] Failed to crawl {}: {} — {}", feed.getName(), e.getMessage(),
                         e.getCause() != null ? e.getCause().getMessage() : "no cause");
             }
         });
@@ -80,12 +78,10 @@ public class NewsCrawlerService {
         // Read and sanitize: Vietnamese sites embed invalid HTML in RSS descriptions
         // e.g. VnExpress uses </br> (not valid XML) which crashes Rome parser
         byte[] rawBytes = conn.getInputStream().readAllBytes();
-        String rawXml = new String(rawBytes, StandardCharsets.UTF_8)
-                .replace("</br>", "") // Invalid closing br tag
-                .replace("<br>", " "); // Unclosed br tag — convert to space
+        String rawXml = new String(rawBytes, StandardCharsets.UTF_8);
 
-        // Fix unescaped & in URLs inside CDATA (common in Vietnamese RSS)
-        rawXml = rawXml.replaceAll("&(?!amp;|lt;|gt;|quot;|apos;|#)", "&amp;");
+        rawXml = com.alphabot.utils.TextProcessingUtils.sanitizeHtmlForRss(rawXml);
+        rawXml = com.alphabot.utils.TextProcessingUtils.fixUnescapedAmpersands(rawXml);
 
         SyndFeed feed;
         try (ByteArrayInputStream bais = new ByteArrayInputStream(rawXml.getBytes(StandardCharsets.UTF_8));
@@ -111,7 +107,8 @@ public class NewsCrawlerService {
                     : Instant.now());
 
             // Keyword-based sentiment (offline, no API key)
-            var result = sentimentAnalyzer.analyze(article.getTitle(), article.getDescription());
+            com.alphabot.service.SentimentAnalyzerService.SentimentResult result = sentimentAnalyzer
+                    .analyze(article.getTitle(), article.getDescription());
             article.setSentimentScore(result.score());
             article.setMentionedTickers(result.tickers());
             article.setAiSummary(result.summary());

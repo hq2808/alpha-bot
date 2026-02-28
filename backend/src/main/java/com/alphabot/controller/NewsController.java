@@ -36,21 +36,9 @@ public class NewsController {
                 return ResponseEntity.ok(List.of()); // Semantic empty return for frontend
             }
 
-            // App-level filtering to avoid Postgres NativeQuery mapping complexity
-            List<NewsArticle> recentArticles = newsArticleRepository.findTop50ByOrderByCrawledAtDesc();
-            List<NewsArticle> filtered = recentArticles.stream()
-                    .filter(article -> {
-                        if (article.getMentionedTickers() == null)
-                            return false;
-                        for (String ticker : userTickers) {
-                            if (article.getMentionedTickers().contains(ticker))
-                                return true;
-                        }
-                        return false;
-                    })
-                    .limit(20)
-                    .toList();
-
+            // Database-level filtering via Native Query
+            String[] tickerArray = userTickers.toArray(new String[0]);
+            List<NewsArticle> filtered = newsArticleRepository.findNewsByWatchlistTickers(tickerArray, 20);
             return ResponseEntity.ok(filtered);
         }
         return ResponseEntity.ok(newsArticleRepository.findTop20ByOrderByCrawledAtDesc());
@@ -65,31 +53,21 @@ public class NewsController {
             @RequestParam(defaultValue = "0.5") double threshold,
             @RequestParam(defaultValue = "false") boolean filterByWatchlist) {
 
-        List<NewsArticle> bullishArticles = newsArticleRepository
-                .findBySentimentScoreGreaterThanAndAlertSentFalse(threshold);
-
         if (filterByWatchlist) {
             List<String> userTickers = watchlistRepository.findAllTickersByUserId(null);
             if (userTickers == null || userTickers.isEmpty()) {
                 return ResponseEntity.ok(List.of());
             }
 
-            // App-level filtering
-            List<NewsArticle> filtered = bullishArticles.stream()
-                    .filter(article -> {
-                        if (article.getMentionedTickers() == null)
-                            return false;
-                        for (String ticker : userTickers) {
-                            if (article.getMentionedTickers().contains(ticker))
-                                return true;
-                        }
-                        return false;
-                    })
-                    .limit(20)
-                    .toList();
-
+            // DB-level filtering
+            String[] tickerArray = userTickers.toArray(new String[0]);
+            List<NewsArticle> filtered = newsArticleRepository.findBullishNewsByWatchlistTickers(threshold, tickerArray,
+                    20);
             return ResponseEntity.ok(filtered);
         }
+
+        List<NewsArticle> bullishArticles = newsArticleRepository
+                .findBySentimentScoreGreaterThanAndAlertSentFalse(threshold);
         return ResponseEntity.ok(bullishArticles);
     }
 
@@ -122,9 +100,7 @@ public class NewsController {
         dummyArticle.setSentimentScore(0.99);
         dummyArticle.setAiSummary("This is a test summary to verify Telegram bot connection.");
         dummyArticle.setMentionedTickers("FPT, VNM");
-        // Save dummy to repository so ID generates and alert runs properly
-        newsArticleRepository.save(dummyArticle);
-
+        // Không save vào DB — chỉ gửi Telegram test, không xuất hiện ở FE hay báo cáo
         alertService.sendBullishAlert(dummyArticle);
         return ResponseEntity.ok("Alert triggered for dummy article!");
     }

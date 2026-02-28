@@ -100,7 +100,7 @@ public class MarketDataService {
         if (timestamps == null)
             return;
 
-        int savedCount = 0;
+        List<MarketData> toSave = new java.util.ArrayList<>();
         for (int i = 0; i < timestamps.size(); i++) {
             if (closeList == null || i >= closeList.size() || closeList.get(i) == null)
                 continue; // Bỏ qua dữ liệu null
@@ -126,10 +126,13 @@ public class MarketDataService {
                                 ? volumeList.get(i).longValue()
                                 : 0L)
                         .build();
-                marketDataRepository.save(data);
-                savedCount++;
+                toSave.add(data);
             }
         }
-        log.info("Lưu thành công {} bản ghi mới cho mã {}.", savedCount, ticker);
+
+        if (!toSave.isEmpty()) {
+            marketDataRepository.saveAll(toSave);
+        }
+        log.info("Lưu thành công {} bản ghi mới cho mã {}.", toSave.size(), ticker);
     }
 }
