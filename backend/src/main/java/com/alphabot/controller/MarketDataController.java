@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/market-data")
@@ -20,6 +22,19 @@ public class MarketDataController {
 
     @GetMapping("/{ticker}")
     public ResponseEntity<List<MarketData>> getHistoricalData(@PathVariable String ticker) {
+        return ResponseEntity.ok(getHistoricalDataList(ticker));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<Map<String, List<MarketData>>> getHistoricalDataBatch(@RequestBody List<String> tickers) {
+        Map<String, List<MarketData>> result = new HashMap<>();
+        for (String ticker : tickers) {
+            result.put(ticker, getHistoricalDataList(ticker));
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    private List<MarketData> getHistoricalDataList(String ticker) {
         // Lấy dữ liệu từ database, xếp theo ngày cũ -> mới
         List<MarketData> data = marketDataRepository.findByTickerOrderByDateDesc(ticker);
 
@@ -30,10 +45,8 @@ public class MarketDataController {
         }
 
         // Đảo ngược lại để Frontend vẽ chart từ Trái sang Phải (Cũ -> Mới)
-        List<MarketData> chartData = data.stream()
+        return data.stream()
                 .sorted((d1, d2) -> d1.getDate().compareTo(d2.getDate()))
                 .toList();
-
-        return ResponseEntity.ok(chartData);
     }
 }

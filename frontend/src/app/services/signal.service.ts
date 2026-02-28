@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { RxStomp } from '@stomp/rx-stomp';
 import { HttpClient } from '@angular/common/http';
-import { Observable, shareReplay } from 'rxjs';
+import { Observable, shareReplay, of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface NewsArticle {
     id: number;
@@ -41,6 +42,9 @@ export interface MarketData {
 export class SignalService {
     private readonly stomp = new RxStomp();
     private readonly latestNews$ = this.http.get<NewsArticle[]>('/api/news/latest').pipe(shareReplay(1));
+    private historicalDataCache: { [ticker: string]: MarketData[] } = {};
+    private cacheTimestamp: number = 0;
+    private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
     constructor(private http: HttpClient) {
         // Connect WebSocket to Spring Boot backend
@@ -53,8 +57,8 @@ export class SignalService {
     /**
      * Observable of the latest news articles from REST API (initial load).
      */
-    getLatestNews(): Observable<NewsArticle[]> {
-        return this.latestNews$;
+    getLatestNews(filterByWatchlist = false): Observable<NewsArticle[]> {
+        return this.http.get<NewsArticle[]>(`/api/news/latest?filterByWatchlist=${filterByWatchlist}`);
     }
 
     /**
@@ -71,8 +75,8 @@ export class SignalService {
     /**
      * Get bullish articles above a given sentiment threshold.
      */
-    getBullishNews(threshold = 0.5): Observable<NewsArticle[]> {
-        return this.http.get<NewsArticle[]>(`/api/news/bullish?threshold=${threshold}`);
+    getBullishNews(threshold = 0.5, filterByWatchlist = false): Observable<NewsArticle[]> {
+        return this.http.get<NewsArticle[]>(`/api/news/bullish?threshold=${threshold}&filterByWatchlist=${filterByWatchlist}`);
     }
 
     /**
@@ -87,6 +91,34 @@ export class SignalService {
      */
     getHistoricalData(ticker: string): Observable<MarketData[]> {
         return this.http.get<MarketData[]>(`/api/market-data/${ticker}`);
+    }
+
+    /**
+     * Get historical market data for multiple tickers (Batch API)
+     * Implements session caching strategy.
+     */
+    getHistoricalDataBatch(tickers: string[]): Observable<{ [ticker: string]: MarketData[] }> {
+        if (!tickers || tickers.length === 0) {
+            return of({});
+        }
+
+        const now = Date.now();
+        if (now - this.cacheTimestamp < this.CACHE_TTL_MS && Object.keys(this.historicalDataCache).length > 0) {
+            // Check if all requested tickers are in cache
+            const allCached = tickers.every(t => this.historicalDataCache[t]);
+            if (allCached) {
+                const result: { [ticker: string]: MarketData[] } = {};
+                tickers.forEach(t => result[t] = this.historicalDataCache[t]);
+                return of(result);
+            }
+        }
+
+        return this.http.post<{ [ticker: string]: MarketData[] }>('/api/market-data/batch', tickers).pipe(
+            tap(data => {
+                this.historicalDataCache = { ...this.historicalDataCache, ...data };
+                this.cacheTimestamp = Date.now();
+            })
+        );
     }
 
     /**

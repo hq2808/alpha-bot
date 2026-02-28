@@ -145,6 +145,41 @@ import { ChatWidgetComponent } from './components/chat-widget/chat-widget.compon
       width: 100%;
       margin: 0 auto;
     }
+
+    /* ---- Responsive Design ---- */
+    @media (max-width: 768px) {
+      .navbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 12px 16px;
+        gap: 12px;
+      }
+      .navbar-brand {
+        flex: 1 1 100%;
+        justify-content: space-between;
+      }
+      .navbar-links {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .navbar-links::-webkit-scrollbar {
+        height: 4px;
+      }
+      .navbar-links::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 4px;
+      }
+      .navbar-status {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+      }
+      .content {
+        padding: 16px;
+      }
+    }
   `],
 })
 export class AppComponent { }

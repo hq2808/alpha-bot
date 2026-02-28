@@ -4,10 +4,10 @@ import { NewsPanelComponent } from '../../components/news-panel/news-panel.compo
 import { SignalService, NewsArticle } from '../../services/signal.service';
 
 @Component({
-    selector: 'app-dashboard',
-    standalone: true,
-    imports: [CommonModule, NewsPanelComponent],
-    template: `
+  selector: 'app-dashboard',
+  standalone: true,
+  imports: [CommonModule, NewsPanelComponent],
+  template: `
     <div class="dashboard">
 
       <!-- Stats Row -->
@@ -63,7 +63,7 @@ import { SignalService, NewsArticle } from '../../services/signal.service';
 
     </div>
   `,
-    styles: [`
+  styles: [`
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -136,34 +136,37 @@ import { SignalService, NewsArticle } from '../../services/signal.service';
       .main-grid { grid-template-columns: 1fr; }
       .sidebar { order: -1; }
     }
+    @media (max-width: 500px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
-    articles: NewsArticle[] = [];
+  articles: NewsArticle[] = [];
 
-    constructor(private signal: SignalService) { }
+  constructor(private signal: SignalService) { }
 
-    ngOnInit(): void {
-        this.signal.getLatestNews().subscribe(news => this.articles = news);
-    }
+  ngOnInit(): void {
+    this.signal.getLatestNews().subscribe(news => this.articles = news);
+  }
 
-    get bullishCount(): number {
-        return this.articles.filter(a => a.sentimentScore >= 0.5).length;
-    }
+  get bullishCount(): number {
+    return this.articles.filter(a => a.sentimentScore >= 0.5).length;
+  }
 
-    get bearishCount(): number {
-        return this.articles.filter(a => a.sentimentScore <= -0.5).length;
-    }
+  get bearishCount(): number {
+    return this.articles.filter(a => a.sentimentScore <= -0.5).length;
+  }
 
-    get avgSentiment(): number {
-        if (!this.articles.length) return 0;
-        return this.articles.reduce((sum, a) => sum + (a.sentimentScore ?? 0), 0) / this.articles.length;
-    }
+  get avgSentiment(): number {
+    if (!this.articles.length) return 0;
+    return this.articles.reduce((sum, a) => sum + (a.sentimentScore ?? 0), 0) / this.articles.length;
+  }
 
-    get topBullish(): NewsArticle[] {
-        return [...this.articles]
-            .filter(a => a.sentimentScore >= 0.5)
-            .sort((a, b) => b.sentimentScore - a.sentimentScore)
-            .slice(0, 5);
-    }
+  get topBullish(): NewsArticle[] {
+    return [...this.articles]
+      .filter(a => a.sentimentScore >= 0.5)
+      .sort((a, b) => b.sentimentScore - a.sentimentScore)
+      .slice(0, 5);
+  }
 }

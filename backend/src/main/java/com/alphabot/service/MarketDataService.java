@@ -7,6 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.util.List;
@@ -39,12 +43,29 @@ public class MarketDataService {
     public void fetchAndSaveRecentData(String ticker) {
         try {
             log.info("Đang lấy dữ liệu giá cho mã {}...", ticker);
+            // Append .VN for 3-letter Vietnamese stocks on Yahoo Finance
+            String queryTicker = ticker;
+            if (ticker.length() == 3 && !ticker.contains(".")) {
+                queryTicker = ticker + ".VN";
+            }
+
             // Lấy dữ liệu 5 ngày gần nhất
             String url = String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?range=5d&interval=1d",
-                    ticker);
+                    queryTicker);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+            HttpEntity<String> entity = new HttpEntity<>("parameters", headers);
+
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            parseAndSaveYahooFinanceResponse(ticker, response);
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                parseAndSaveYahooFinanceResponse(ticker, resp.getBody());
+            } else {
+                log.warn("Lấy dữ liệu giá không thành công cho {}", ticker);
+            }
         } catch (Exception e) {
             log.error("Lỗi khi lấy dữ liệu giá cho {}: {}", ticker, e.getMessage());
         }

@@ -19,4 +19,6 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, Long> 
 
     // Get all articles since a specific time
     List<NewsArticle> findByCrawledAtAfter(Instant since);
+
+    List<NewsArticle> findTop50ByOrderByCrawledAtDesc();
 }
