@@ -36,13 +36,16 @@ public class NewsArticle {
 
     // AI-generated fields
     @Column(name = "sentiment_score")
-    private Double sentimentScore;          // -1.0 (Bearish) to 1.0 (Bullish)
+    private Double sentimentScore; // -1.0 (Bearish) to 1.0 (Bullish)
 
     @Column(name = "mentioned_tickers", length = 500)
-    private String mentionedTickers;        // e.g., "AAPL,GOOGL,BTC"
+    private String mentionedTickers; // e.g., "AAPL,GOOGL,BTC"
 
     @Column(name = "ai_summary", length = 1000)
     private String aiSummary;
+
+    @Column(length = 255)
+    private String tags;
 
     @Column(name = "is_alert_sent")
     private boolean alertSent = false;

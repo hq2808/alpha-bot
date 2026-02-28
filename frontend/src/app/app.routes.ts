@@ -25,6 +25,12 @@ export const routes: Routes = [
         title: 'Alpha Bot — Market Intelligence',
     },
     {
+        path: 'watchlist',
+        loadComponent: () =>
+            import('./pages/watchlist/watchlist.component').then(m => m.WatchlistComponent),
+        title: 'Alpha Bot — Watchlist',
+    },
+    {
         path: 'settings',
         loadComponent: () =>
             import('./pages/settings/settings.component').then(m => m.SettingsComponent),

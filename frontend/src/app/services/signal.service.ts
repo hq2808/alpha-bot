@@ -14,6 +14,7 @@ export interface NewsArticle {
     sentimentScore: number;
     mentionedTickers: string;
     aiSummary: string;
+    tags: string;
     alertSent: boolean;
 }
 
@@ -86,6 +87,28 @@ export class SignalService {
      */
     getHistoricalData(ticker: string): Observable<MarketData[]> {
         return this.http.get<MarketData[]>(`/api/market-data/${ticker}`);
+    }
+
+    /**
+     * Watchlist API calls
+     */
+    getWatchlist(): Observable<any[]> {
+        return this.http.get<any[]>('/api/watchlist');
+    }
+
+    addToWatchlist(ticker: string): Observable<any> {
+        return this.http.post<any>(`/api/watchlist/${ticker}`, {});
+    }
+
+    removeFromWatchlist(ticker: string): Observable<any> {
+        return this.http.delete<any>(`/api/watchlist/${ticker}`);
+    }
+
+    /**
+     * Chat API
+     */
+    chat(message: string): Observable<any> {
+        return this.http.post<any>('/api/chat', { message });
     }
 
     /**

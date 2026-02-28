@@ -47,10 +47,12 @@ public class NewsCrawlerService {
             Map.of("source", "Reuters", "url", "https://feeds.reuters.com/reuters/businessNews"),
             Map.of("source", "CNBC", "url", "https://www.cnbc.com/id/100003114/device/rss/rss.html"));
 
-    // Browser User-Agent to avoid being blocked by Vietnamese news sites
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/121.0.0.0 Safari/537.36";
+    // Browser User-Agents to avoid being blocked by Vietnamese news sites
+    private static final List<String> USER_AGENTS = List.of(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
     @Scheduled(fixedDelayString = "${alpha-bot.crawler.interval-ms:300000}")
     public void crawlAll() {
@@ -67,9 +69,10 @@ public class NewsCrawlerService {
     }
 
     private void crawlFeed(String source, String feedUrl) throws Exception {
-        // Fetch with browser User-Agent so Vietnamese sites don't block us
+        // Fetch with random browser User-Agent so Vietnamese sites don't block us
         HttpURLConnection conn = (HttpURLConnection) URI.create(feedUrl).toURL().openConnection();
-        conn.setRequestProperty("User-Agent", USER_AGENT);
+        String randomUserAgent = USER_AGENTS.get(new java.util.Random().nextInt(USER_AGENTS.size()));
+        conn.setRequestProperty("User-Agent", randomUserAgent);
         conn.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml, */*");
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(15_000);
@@ -112,6 +115,7 @@ public class NewsCrawlerService {
             article.setSentimentScore(result.score());
             article.setMentionedTickers(result.tickers());
             article.setAiSummary(result.summary());
+            article.setTags(result.tags());
 
             newsArticleRepository.save(article);
             newItems++;

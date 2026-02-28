@@ -8,6 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.alphabot.repository.WatchlistRepository;
+import com.alphabot.entity.Watchlist;
+
+import java.util.List;
+
 /**
  * Telegram alert service. Sends a message when a bullish article is detected.
  */
@@ -18,6 +23,7 @@ public class AlertService {
 
     private final NewsArticleRepository newsArticleRepository;
     private final RestTemplate restTemplate;
+    private final WatchlistRepository watchlistRepository;
 
     @Value("${alpha-bot.telegram.bot-token:}")
     private String botToken;
@@ -30,6 +36,24 @@ public class AlertService {
             return;
         if (article.isAlertSent())
             return;
+
+        // Watchlist filtering
+        List<Watchlist> watchlist = watchlistRepository.findAll();
+        if (!watchlist.isEmpty()) {
+            boolean isWatched = false;
+            String tickers = article.getMentionedTickers();
+            if (tickers != null && !tickers.isBlank()) {
+                for (Watchlist w : watchlist) {
+                    if (tickers.contains(w.getTicker())) {
+                        isWatched = true;
+                        break;
+                    }
+                }
+            }
+            if (!isWatched) {
+                return; // Ignore article, not in watchlist
+            }
+        }
 
         String message = String.format(
                 "📈 *BULLISH SIGNAL DETECTED*\n\n" +

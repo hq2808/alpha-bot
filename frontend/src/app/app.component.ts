@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { ChatWidgetComponent } from './components/chat-widget/chat-widget.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, ChatWidgetComponent],
   template: `
     <div class="shell">
 
@@ -20,6 +21,9 @@ import { CommonModule } from '@angular/common';
           </a>
           <a routerLink="/intelligence" routerLinkActive="active">
             🎯 Intelligence
+          </a>
+          <a routerLink="/watchlist" routerLinkActive="active">
+            ⭐ Watchlist
           </a>
           <a routerLink="/signals" routerLinkActive="active">
             📰 News Insight
@@ -39,6 +43,7 @@ import { CommonModule } from '@angular/common';
         <router-outlet />
       </main>
 
+      <app-chat-widget></app-chat-widget>
     </div>
   `,
   styles: [`

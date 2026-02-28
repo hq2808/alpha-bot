@@ -30,6 +30,9 @@ import { createChart, IChartApi } from 'lightweight-charts';
               <span class="score">{{ article.sentimentScore | number:'1.2-2' }}</span>
             </div>
             <a [href]="article.url" target="_blank" class="title">{{ article.title }}</a>
+            @if (article.tags) {
+              <div class="article-tags">{{ article.tags }}</div>
+            }
             @if (article.mentionedTickers) {
               <div class="tickers">
                 @for (t of article.mentionedTickers.split(','); track t) {
@@ -91,6 +94,7 @@ import { createChart, IChartApi } from 'lightweight-charts';
     .chip { background: rgba(88,166,255,0.1); color: #58a6ff; font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; border: 1px solid rgba(88,166,255,0.2); cursor: pointer; transition: all 0.2s; }
     .chip:hover { background: rgba(88,166,255,0.2); transform: translateY(-1px); }
     .time { font-size: 0.75rem; color: #6e7681; margin-top: auto; }
+    .article-tags { font-size: 0.8rem; color: #d2a8ff; font-weight: 500; }
     .empty { grid-column: 1/-1; text-align: center; padding: 100px; color: #8b949e; }
 
     /* Modal styling */
@@ -205,7 +209,49 @@ export class SignalsComponent implements OnInit {
         .filter((v, i, a) => a.findIndex(t => t.time === v.time) === i) // Ensure unique dates
         .sort((a, b) => a.time.localeCompare(b.time)); // Sort by date just in case
 
+      // SMA20 Calculation
+      const smaData = [];
+      const period = 20;
+      for (let i = 0; i < formattedData.length; i++) {
+        if (i < period - 1) continue;
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+          sum += formattedData[i - j].close;
+        }
+        smaData.push({ time: formattedData[i].time, value: sum / period });
+      }
+
+      // Volume Data Mapping
+      const volumeData = formattedData.map(d => {
+        // Find original volume
+        const original = this.chartData.find(dt => dt.date.split('T')[0] === d.time);
+        return {
+          time: d.time,
+          value: original?.volume || 0,
+          color: d.close >= d.open ? 'rgba(63, 185, 80, 0.4)' : 'rgba(248, 81, 73, 0.4)'
+        };
+      });
+
       candlestickSeries.setData(formattedData);
+
+      // Add Volume Histogram Series
+      const volumeSeries = (this.chart as any).addHistogramSeries({
+        color: '#26a69a',
+        priceFormat: { type: 'volume' },
+        priceScaleId: '', // blank sets it as overlay
+      });
+      volumeSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+      });
+      volumeSeries.setData(volumeData);
+
+      // Add SMA20 Line Series
+      const smaSeries = (this.chart as any).addLineSeries({
+        color: '#58a6ff',
+        lineWidth: 2,
+        title: 'SMA 20'
+      });
+      smaSeries.setData(smaData);
     }
 
     this.chart.timeScale().fitContent();

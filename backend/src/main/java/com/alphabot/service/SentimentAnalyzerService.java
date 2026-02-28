@@ -74,9 +74,10 @@ public class SentimentAnalyzerService {
             double score,
             String tickers,
             String summary,
+            String tags,
             boolean isBullish) implements java.io.Serializable {
         public static SentimentResult neutral() {
-            return new SentimentResult(0.0, "", "", false);
+            return new SentimentResult(0.0, "", "", "", false);
         }
 
         public boolean isBullish(double threshold) {
@@ -131,8 +132,38 @@ public class SentimentAnalyzerService {
         // Build short summary
         String summary = buildSummary(normalized, tickers);
 
-        log.debug("[Sentiment] title='{}' score={} tickers='{}'", title, normalized, tickers);
-        return new SentimentResult(normalized, tickers, summary, normalized >= 0.5);
+        // Extract rule-based tags
+        String tags = extractTags(text);
+
+        log.debug("[Sentiment] title='{}' score={} tickers='{}' tags='{}'", title, normalized, tickers, tags);
+        return new SentimentResult(normalized, tickers, summary, tags, normalized >= 0.5);
+    }
+
+    private String extractTags(String text) {
+        Set<String> tags = new LinkedHashSet<>();
+        if (text.contains("lãi suất") || text.contains("lạm phát") || text.contains("gdp") || text.contains("tỷ giá")
+                || text.contains("vĩ mô")) {
+            tags.add("[Vĩ Mô]");
+        }
+        if (text.contains("ngân hàng") || text.contains("tín dụng") || text.contains("nợ xấu")
+                || text.contains("nhnn")) {
+            tags.add("[Ngân Hàng]");
+        }
+        if (text.contains("bất động sản") || text.contains("đất nền") || text.contains("chung cư")
+                || text.contains("sổ đỏ")) {
+            tags.add("[Bất Động Sản]");
+        }
+        if (text.contains("cổ tức") || text.contains("phát hành") || text.contains("phân bổ")) {
+            tags.add("[Cổ Tức]");
+        }
+        if (text.contains("chính sách") || text.contains("quốc hội") || text.contains("chính phủ")
+                || text.contains("thủ tướng") || text.contains("luật")) {
+            tags.add("[Chính Sách]");
+        }
+        if (tags.isEmpty()) {
+            tags.add("[Thị Trường]");
+        }
+        return String.join(" ", tags);
     }
 
     private String extractTickers(String text) {
