@@ -86,6 +86,66 @@ public class AlertService {
         }
     }
 
+    /**
+     * Send End of Day Summary Report using MarkdownV2 format.
+     */
+    public void sendEodReport(String rawReport) {
+        if (botToken.isBlank() || chatId.isBlank())
+            return;
+
+        // Escape strict MarkdownV2 chars for Telegram API
+        String escapedText = escapeForMarkdownV2(rawReport);
+        String finalMessage = "📊 *Tổng Hợp Thị Trường Cuối Ngày*\n\n" + escapedText;
+
+        try {
+            String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
+            var payload = new java.util.HashMap<String, String>();
+            payload.put("chat_id", chatId);
+            payload.put("text", finalMessage);
+            payload.put("parse_mode", "MarkdownV2");
+            restTemplate.postForObject(url, payload, String.class);
+
+            log.info("[Alert] EOD Report sent successfully to Telegram.");
+        } catch (Exception e) {
+            log.warn("[Alert] Failed to send EOD Telegram report: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Safely escapes characters required by Telegram's MarkdownV2
+     * while preserving asterisks (*) for bold formatting.
+     * LLMs often produce **bold** which we map to *bold* first.
+     */
+    private String escapeForMarkdownV2(String text) {
+        if (text == null)
+            return "";
+
+        // 1. Convert LLM **bold** to Telegram *bold*
+        String processed = text.replaceAll("\\*\\*", "*");
+
+        // 2. Escape all mandatory MarkdownV2 characters EXCEPT * (asterisk)
+        // Mandatory escaped chars: _ * [ ] ( ) ~ ` > # + - = | { } . !
+        // We do not escape * so that formatting triggers.
+        return processed
+                .replace("_", "\\_")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("`", "\\`")
+                .replace(">", "\\>")
+                .replace("#", "\\#")
+                .replace("+", "\\+")
+                .replace("-", "\\-") // In Telegram lists prefer emojis bc escaping hyphen is hard
+                .replace("=", "\\=")
+                .replace("|", "\\|")
+                .replace("{", "\\{")
+                .replace("}", "\\}")
+                .replace(".", "\\.")
+                .replace("!", "\\!");
+    }
+
     private String escapeMarkdown(String text) {
         if (text == null)
             return "";

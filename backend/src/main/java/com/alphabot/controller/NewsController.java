@@ -21,6 +21,7 @@ public class NewsController {
     private final WatchlistRepository watchlistRepository;
     private final MarketInsightService marketInsightService;
     private final com.alphabot.service.AlertService alertService;
+    private final com.alphabot.service.ReportService reportService;
 
     /**
      * GET /api/news/latest — Returns the 20 most recent articles with AI analysis.
@@ -126,5 +127,15 @@ public class NewsController {
 
         alertService.sendBullishAlert(dummyArticle);
         return ResponseEntity.ok("Alert triggered for dummy article!");
+    }
+
+    /**
+     * GET /api/test-eod-report — Manual trigger for the End of Day Telegram summary
+     * report.
+     */
+    @GetMapping("/test-eod-report")
+    public ResponseEntity<String> testEodReport() {
+        reportService.generateAndSendEodReport();
+        return ResponseEntity.ok("EOD Telegram report generated and dispatched.");
     }
 }
