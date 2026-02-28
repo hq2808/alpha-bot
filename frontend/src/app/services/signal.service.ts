@@ -17,6 +17,25 @@ export interface NewsArticle {
     alertSent: boolean;
 }
 
+export interface TickerSignal {
+    ticker: string;
+    averageSentiment: number;
+    mentionCount: number;
+    signal: string;
+    lastNewsTitle: string;
+}
+
+export interface MarketData {
+    id?: number;
+    ticker: string;
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SignalService {
     private readonly stomp = new RxStomp();
@@ -53,6 +72,20 @@ export class SignalService {
      */
     getBullishNews(threshold = 0.5): Observable<NewsArticle[]> {
         return this.http.get<NewsArticle[]>(`/api/news/bullish?threshold=${threshold}`);
+    }
+
+    /**
+     * Get aggregated market signals for trending tickers.
+     */
+    getMarketSignals(): Observable<TickerSignal[]> {
+        return this.http.get<TickerSignal[]>('/api/market/signals');
+    }
+
+    /**
+     * Get historical market data for chart
+     */
+    getHistoricalData(ticker: string): Observable<MarketData[]> {
+        return this.http.get<MarketData[]>(`/api/market-data/${ticker}`);
     }
 
     /**

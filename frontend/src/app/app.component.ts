@@ -3,10 +3,10 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
 @Component({
-    selector: 'app-root',
-    standalone: true,
-    imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
-    template: `
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  template: `
     <div class="shell">
 
       <!-- Top Navigation Bar -->
@@ -18,8 +18,11 @@ import { CommonModule } from '@angular/common';
           <a routerLink="/dashboard" routerLinkActive="active">
             🏠 Dashboard
           </a>
+          <a routerLink="/intelligence" routerLinkActive="active">
+            🎯 Intelligence
+          </a>
           <a routerLink="/signals" routerLinkActive="active">
-            📈 Signals
+            📰 News Insight
           </a>
           <a routerLink="/settings" routerLinkActive="active">
             ⚙️ Settings
@@ -38,7 +41,7 @@ import { CommonModule } from '@angular/common';
 
     </div>
   `,
-    styles: [`
+  styles: [`
     :host {
       display: block;
       min-height: 100vh;

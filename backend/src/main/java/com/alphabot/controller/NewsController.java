@@ -2,6 +2,7 @@ package com.alphabot.controller;
 
 import com.alphabot.entity.NewsArticle;
 import com.alphabot.repository.NewsArticleRepository;
+import com.alphabot.service.MarketInsightService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class NewsController {
 
     private final NewsArticleRepository newsArticleRepository;
+    private final MarketInsightService marketInsightService;
 
     /**
      * GET /api/news/latest — Returns the 20 most recent articles with AI analysis.
@@ -37,10 +39,19 @@ public class NewsController {
     }
 
     /**
+     * GET /api/market/signals — Returns trending tickers with buy/sell signals
+     * based on news.
+     */
+    @GetMapping("/market/signals")
+    public ResponseEntity<List<MarketInsightService.TickerSignal>> getMarketSignals() {
+        return ResponseEntity.ok(marketInsightService.getMarketSignals());
+    }
+
+    /**
      * GET /api/health — Simple health check endpoint.
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
-        return ResponseEntity.ok(Map.of("status", "OK", "version", "1.0.0"));
+        return ResponseEntity.ok(Map.of("status", "OK", "version", "1.1.0"));
     }
 }

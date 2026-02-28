@@ -66,9 +66,9 @@ public class SentimentAnalyzerService {
     // ── Tickers: global + Vietnamese HOSE/HNX blue-chips ─────────────
     private static final Pattern TICKER_PATTERN = Pattern.compile(
             "\\$([A-Z]{1,5})"
-                    + "|\\b(AAPL|TSLA|NVDA|AMZN|GOOGL|MSFT|META|BTC|ETH|SPY|QQQ)"
-                    // Vietnam stocks
-                    + "|\\b(VIC|VHM|VNM|FPT|TCB|MBB|VPB|CTG|BID|VCB|ACB|GVR|SAB|MSN|HPG|GAS|POW|PLX|PNJ|MWG|VRE|SSI|VND|HCM|VIB|HDB|DGC|BCM)\\b");
+                    + "|\\b(AAPL|TSLA|NVDA|AMZN|GOOGL|MSFT|META|BTC|ETH|VND|USD|XAU|XAG)\\b"
+                    // Vietnam VN30 & Popular tickers
+                    + "|\\b(VIC|VHM|VNM|FPT|TCB|MBB|VPB|CTG|BID|VCB|ACB|GVR|SAB|MSN|HPG|GAS|POW|PLX|PNJ|MWG|VRE|SSI|VND|HCM|VIB|HDB|DGC|BCM|STB|NVL|KDH|PDR|VJC|VSH|DXG|DIG|NLG|KBC|VCI|LPB|MSB|SHB|OCB|EIB|TPB|TCH|KOS|VGC|PVD|PVS|VCS|DHT|VIX|GEX|REE|VHC|ANV|IDV|TNG|MVS|VCI|SCS|CTR|VTP|VEA|ACV|BSR|OIL|POW|GEG|HDG|VPI|SZC|IDC|DPR|PHR|NTC|LH|TIP|AGG|CRE|SCR|DIG|PDR|DXS|HTN|QCG|HQC|ITA|FLC|ROS|AMD|HAI|ART|KPF)\\b");
 
     public record SentimentResult(
             double score,
@@ -139,9 +139,17 @@ public class SentimentAnalyzerService {
         Matcher m = TICKER_PATTERN.matcher(text);
         Set<String> found = new LinkedHashSet<>();
         while (m.find()) {
-            String t = m.group(1) != null ? m.group(1) : m.group(2);
+            // Check capture groups: $TICKER, Global, or VN stocks
+            String t = null;
+            if (m.group(1) != null)
+                t = m.group(1);
+            else if (m.group(2) != null)
+                t = m.group(2);
+            else if (m.group(3) != null)
+                t = m.group(3);
+
             if (t != null)
-                found.add(t);
+                found.add(t.toUpperCase());
         }
         return String.join(",", found);
     }
