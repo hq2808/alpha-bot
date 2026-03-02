@@ -51,8 +51,12 @@ public class ReportService {
 
         log.info("[ReportService] Found {} articles today. Calling AI for summary...", todaysArticles.size());
 
-        // 4. Prepare Context for AI
+        // 4. Prepare Context for AI - Limit to top 50 articles to avoid Groq 12K TPM
+        // limit
+        // Sort descending by crawl time to get the latest news if there's an overflow
         String rawNewsText = todaysArticles.stream()
+                .sorted((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()))
+                .limit(50)
                 .map(a -> String.format("- %s (Tickers: %s)", a.getTitle(), a.getMentionedTickers()))
                 .collect(Collectors.joining("\n"));
 

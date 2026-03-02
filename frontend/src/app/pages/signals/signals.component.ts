@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SignalService, NewsArticle, MarketData } from '../../services/signal.service';
+import { SignalService, NewsArticle, NewsPage, MarketData, TickerSignal } from '../../services/signal.service';
 import { createChart, IChartApi } from 'lightweight-charts';
 
 @Component({
@@ -19,9 +19,23 @@ import { createChart, IChartApi } from 'lightweight-charts';
                  [(ngModel)]="threshold"
                  (change)="load()" />
           <span class="threshold-val">≥ {{ threshold | number:'1.2-2' }}</span>
-          
+
           <div class="filter-divider"></div>
-          
+
+          <!-- Search -->
+          <div class="search-bar">
+            <span>🔍</span>
+            <input type="text" placeholder="Tìm theo tiêu đề, mã, nguồn..."
+                   [(ngModel)]="searchQuery"
+                   (ngModelChange)="onSearchChange()"
+                   class="search-input" />
+            @if (searchQuery) {
+              <button class="clear-btn" (click)="clearSearch()">✕</button>
+            }
+          </div>
+
+          <div class="filter-divider"></div>
+
           <label class="switch-block">
             <span class="switch-label">Chỉ hiện tin trong Watchlist</span>
             <div class="switch">
@@ -32,81 +46,109 @@ import { createChart, IChartApi } from 'lightweight-charts';
         </div>
       </div>
 
-      <!-- Mini Charts Grid -->
-      @if (watchlistTickers.length > 0) {
-        <div class="mini-charts-section">
-          <div class="mini-charts-header">
-            <h3>📈 Watchlist Overview</h3>
-            <span class="mini-charts-count">Showing top {{ getDisplayTickers().length }} tickers</span>
+      <!-- ── Khuyến nghị Mua / Bán ─────────────────────────────── -->
+      @if (tickerSignals.length > 0) {
+        <div class="rec-section">
+          <h2 class="rec-title">📊 Khuyến nghị Mua / Bán theo tin tức</h2>
+          <div class="rec-table-wrap">
+            <table class="rec-table">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Khuyến nghị</th>
+                  <th>Tâm lý TB</th>
+                  <th>Số bài</th>
+                  <th>Tin gần nhất</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sig of tickerSignals; track sig.ticker) {
+                  <tr class="rec-row" [class]="recRowClass(sig.signal)" (click)="filterByTicker(sig.ticker)">
+                    <td class="rec-ticker">{{ sig.ticker }}</td>
+                    <td>
+                      <span class="rec-badge" [class]="recBadgeClass(sig.signal)">
+                        {{ signalLabel(sig.signal) }}
+                      </span>
+                    </td>
+                    <td class="rec-score" [class]="sig.averageSentiment >= 0.5 ? 'pos' : sig.averageSentiment <= -0.5 ? 'neg' : 'neu'">
+                      {{ sig.averageSentiment | number:'1.2-2' }}
+                    </td>
+                    <td class="rec-count">{{ sig.mentionCount }}</td>
+                    <td class="rec-headline">{{ sig.lastNewsTitle }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
-          <div class="mini-charts-grid">
-            @for (ticker of getDisplayTickers(); track ticker) {
-              <div class="mini-chart-card" (click)="scrollToTickerNews(ticker)">
-                <div class="mini-chart-title">{{ ticker }}</div>
-                <div class="mini-chart-container" [id]="'mini-chart-' + ticker"></div>
-              </div>
-            }
-          </div>
+          <p class="rec-note">⚡ Nhấn vào dòng để lọc tin theo mã · Dữ liệu tổng hợp từ AI phân tích báo, chỉ mang tính tham khảo</p>
+        </div>
+      }
+
+
+      <!-- Results info -->
+      @if (newsPage) {
+        <div class="results-info">
+          {{ newsPage.totalElements }} bài viết
+          @if (searchQuery) { — "<strong>{{ searchQuery }}</strong>" }
         </div>
       }
 
       <div class="signals-grid">
-        @for (article of articles; track article.id) {
-          <div class="signal-card">
-            <div class="card-top">
-              <span class="source-badge">{{ article.source }}</span>
-              <span class="score">{{ article.sentimentScore | number:'1.2-2' }}</span>
-            </div>
-            <a [href]="article.url" target="_blank" class="title">{{ article.title }}</a>
-            @if (article.tags) {
-              <div class="article-tags">{{ article.tags }}</div>
-            }
-            @if (article.mentionedTickers) {
-              <div class="tickers">
-                @for (t of article.mentionedTickers.split(','); track t) {
-                  <span class="chip" (click)="openChart(t.trim())">{{ t.trim() }}</span>
-                }
+        @if (loading) {
+          <div class="loading-card">⏳ Đang tải...</div>
+        } @else {
+          @for (article of newsPage?.content ?? []; track article.id) {
+            <div class="signal-card">
+              <div class="card-top">
+                <span class="source-badge">{{ article.source }}</span>
+                <span class="score">{{ article.sentimentScore | number:'1.2-2' }}</span>
               </div>
-            }
-            <span class="time">{{ article.crawledAt | date:'HH:mm dd/MM' }}</span>
-          </div>
-        } @empty {
-          <div class="empty">
-            @if (filterByWatchlist) {
-              <p>Watchlist của bạn đang trống hoặc chưa có tin tức nào nổi bật.</p>
-              <button class="add-btn" (click)="filterByWatchlist=false; load()">Xem toàn bộ tin tức</button>
-            } @else {
-              <p>Không có tin tức nào trên ngưỡng {{ threshold | number:'1.2-2' }}</p>
-              <small>Hệ thống đang tiếp tục theo dõi thị trường...</small>
-            }
-          </div>
+              <a [href]="article.url" target="_blank" class="title">{{ article.title }}</a>
+              @if (article.tags) {
+                <div class="article-tags">{{ article.tags }}</div>
+              }
+              @if (article.mentionedTickers) {
+                <div class="tickers">
+                  @for (t of article.mentionedTickers.split(','); track t) {
+            <span class="chip" (click)="filterByTicker(t.trim()); $event.stopPropagation()">{{ t.trim() }}</span>
+                  }
+                </div>
+              }
+              <span class="time">{{ (article.publishedAt || article.crawledAt) | date:'dd/MM HH:mm' }}</span>
+            </div>
+          } @empty {
+            <div class="empty">
+              @if (filterByWatchlist) {
+                <p>Watchlist của bạn đang trống hoặc chưa có tin tức nào nổi bật.</p>
+                <button class="add-btn" (click)="filterByWatchlist=false; load()">Xem toàn bộ tin tức</button>
+              } @else {
+                <p>Không có tin tức nào trên ngưỡng {{ threshold | number:'1.2-2' }}</p>
+                <small>Hệ thống đang tiếp tục theo dõi thị trường...</small>
+              }
+            </div>
+          }
         }
       </div>
 
-      <!-- Chart Modal -->
-      @if (selectedTicker) {
-        <div class="modal-overlay" (click)="closeChart()">
-          <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-              <h2>Biểu đồ giá {{ selectedTicker }}</h2>
-              <button class="close-btn" (click)="closeChart()">✕</button>
-            </div>
-            
-            @if (isLoadingChart) {
-              <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Đang tải dữ liệu...</p>
-              </div>
-            }
-            
-            <div class="chart-container" [class.hidden]="isLoadingChart" #chartContainer></div>
-          </div>
+      <!-- Pagination -->
+      @if (newsPage && newsPage.totalPages > 1) {
+        <div class="pagination">
+          <button class="page-btn" (click)="goToPage(0)" [disabled]="currentPage === 0">«</button>
+          <button class="page-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 0">‹</button>
+          @for (p of pageNumbers(); track p) {
+            <button class="page-btn" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p + 1 }}</button>
+          }
+          <button class="page-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage >= newsPage.totalPages - 1">›</button>
+          <button class="page-btn" (click)="goToPage(newsPage.totalPages - 1)" [disabled]="currentPage >= newsPage.totalPages - 1">»</button>
+          <span class="page-info">Trang {{ currentPage + 1 }} / {{ newsPage.totalPages }}</span>
         </div>
       }
+
     </div>
   `,
   styles: [`
     .signals-page { padding: 20px; }
+    .news-panel-section { margin-top: 32px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
     .page-header { margin-bottom: 24px; }
     h1 { color: #e6edf3; font-size: 1.4rem; margin-bottom: 4px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
     .subtitle { color: #8b949e; font-size: 0.9rem; margin-top: 0; margin-bottom: 16px; }
@@ -129,7 +171,33 @@ import { createChart, IChartApi } from 'lightweight-charts';
     .slider.round { border-radius: 20px; }
     .slider.round:before { border-radius: 50%; }
 
+    /* ── Recommendation Table ─────────────────────────────── */
+    .rec-section { margin-bottom: 24px; }
+    .rec-title { font-size: 1rem; color: #e6edf3; margin: 0 0 12px; font-weight: 700; }
+    .rec-table-wrap { overflow-x: auto; border: 1px solid #30363d; border-radius: 8px; }
+    .rec-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .rec-table thead th { background: #161b22; color: #8b949e; text-align: left; padding: 9px 12px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+    .rec-row { border-bottom: 1px solid #21262d; cursor: pointer; transition: background 0.12s; }
+    .rec-row:hover { background: #161b22; }
+    .rec-row.buy-row  { border-left: 3px solid #3fb950; }
+    .rec-row.sell-row { border-left: 3px solid #f85149; }
+    .rec-row.neu-row  { border-left: 3px solid #30363d; }
+    .rec-row td { padding: 9px 12px; vertical-align: middle; }
+    .rec-ticker { font-size: 1rem; font-weight: 900; color: #58a6ff; white-space: nowrap; }
+    .rec-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-weight: 800; font-size: 0.75rem; white-space: nowrap; }
+    .rec-badge.buy-b  { background: rgba(35,134,54,0.15); color: #3fb950; border: 1px solid #238636; }
+    .rec-badge.sell-b { background: rgba(218,54,51,0.15);  color: #f85149; border: 1px solid #da3633; }
+    .rec-badge.neu-b  { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+    .rec-score { font-weight: 700; white-space: nowrap; }
+    .rec-score.pos { color: #3fb950; }
+    .rec-score.neg { color: #f85149; }
+    .rec-score.neu { color: #8b949e; }
+    .rec-count { color: #8b949e; text-align: center; }
+    .rec-headline { color: #6e7681; font-size: 0.8rem; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rec-note { font-size: 0.75rem; color: #6e7681; margin-top: 8px; margin-bottom: 0; }
+
     /* Mini Charts */
+
     .mini-charts-section { margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #30363d; }
     .mini-charts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .mini-charts-header h3 { font-size: 1.1rem; color: #e6edf3; margin: 0; }
@@ -157,7 +225,26 @@ import { createChart, IChartApi } from 'lightweight-charts';
     .article-tags { font-size: 0.8rem; color: #d2a8ff; font-weight: 500; }
     .empty { grid-column: 1/-1; text-align: center; padding: 100px; color: #8b949e; }
 
+    .results-info { font-size: 0.78rem; color: #6e7681; margin-bottom: 8px; }
+    .results-info strong { color: #e6edf3; }
+
+    .search-bar { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 6px 10px; min-width: 220px; flex: 1; max-width: 360px; transition: border-color 0.2s; }
+    .search-bar:focus-within { border-color: #58a6ff; }
+    .search-input { background: transparent; border: none; outline: none; color: #e6edf3; font-size: 0.85rem; flex: 1; }
+    .clear-btn { background: none; border: none; color: #6e7681; cursor: pointer; font-size: 0.85rem; padding: 0; }
+    .clear-btn:hover { color: #e6edf3; }
+
+    .loading-card { grid-column: 1/-1; padding: 40px; text-align: center; color: #8b949e; }
+
+    .pagination { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 16px 0; }
+    .page-btn { background: #161b22; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.82rem; transition: all 0.15s; min-width: 32px; text-align: center; }
+    .page-btn:hover:not(:disabled) { background: #21262d; color: #e6edf3; border-color: #58a6ff; }
+    .page-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; font-weight: 700; }
+    .page-btn:disabled { opacity: 0.3; cursor: default; }
+    .page-info { font-size: 0.78rem; color: #6e7681; margin-left: 6px; }
+
     /* Modal styling */
+
     .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
     .modal-content { background: #0d1117; border: 1px solid #30363d; border-radius: 12px; width: 90%; max-width: 800px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #21262d; padding-bottom: 12px; }
@@ -174,6 +261,12 @@ import { createChart, IChartApi } from 'lightweight-charts';
 })
 export class SignalsComponent implements OnInit, OnDestroy {
   articles: NewsArticle[] = [];
+  tickerSignals: TickerSignal[] = [];
+  newsPage: NewsPage | null = null;
+  searchQuery = '';
+  currentPage = 0;
+  readonly pageSize = 21;
+  loading = false;
   threshold = 0.5;
   filterByWatchlist = false;
 
@@ -198,13 +291,13 @@ export class SignalsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Read Query Params to restore state (Optional improvement)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('filterByWatchlist')) {
       this.filterByWatchlist = urlParams.get('filterByWatchlist') === 'true';
     }
     this.loadWatchlist();
     this.load();
+    this.signal.getMarketSignals().subscribe(sigs => this.tickerSignals = sigs);
   }
 
   loadWatchlist() {
@@ -231,7 +324,72 @@ export class SignalsComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    this.signal.getBullishNews(this.threshold, this.filterByWatchlist).subscribe(news => this.articles = news);
+    this.loading = true;
+    this.signal.searchNews(this.searchQuery, this.currentPage, this.pageSize, this.threshold)
+      .subscribe({
+        next: page => { this.newsPage = page; this.loading = false; },
+        error: () => { this.loading = false; }
+      });
+  }
+
+  onSearchChange(): void {
+    this.currentPage = 0;
+    this.load();
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.currentPage = 0;
+    this.load();
+  }
+
+  goToPage(page: number): void {
+    if (!this.newsPage) return;
+    if (page < 0 || page >= this.newsPage.totalPages) return;
+    this.currentPage = page;
+    this.load();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  pageNumbers(): number[] {
+    if (!this.newsPage) return [];
+    const total = this.newsPage.totalPages;
+    const cur = this.currentPage;
+    const range: number[] = [];
+    for (let i = Math.max(0, cur - 3); i <= Math.min(total - 1, cur + 3); i++) range.push(i);
+    return range;
+  }
+
+  filterByTicker(ticker: string): void {
+    this.searchQuery = ticker;
+    this.currentPage = 0;
+    this.load();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  signalLabel(signal: string): string {
+    const map: Record<string, string> = {
+      'STRONG BUY': '🟢🟢 MUA MẠNH',
+      'BUY': '🟢 MUA',
+      'NEUTRAL': '⏸️ TRUNG LẬP',
+      'SELL': '🔴 BÁN',
+      'STRONG SELL': '🔴🔴 BÁN MẠNH',
+    };
+    return map[signal?.toUpperCase()] ?? signal;
+  }
+
+  recRowClass(signal: string): string {
+    const s = signal?.toUpperCase() ?? '';
+    if (s.includes('BUY')) return 'buy-row';
+    if (s.includes('SELL')) return 'sell-row';
+    return 'neu-row';
+  }
+
+  recBadgeClass(signal: string): string {
+    const s = signal?.toUpperCase() ?? '';
+    if (s.includes('BUY')) return 'buy-b';
+    if (s.includes('SELL')) return 'sell-b';
+    return 'neu-b';
   }
 
   scrollToTickerNews(ticker: string) {

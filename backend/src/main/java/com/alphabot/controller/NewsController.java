@@ -5,6 +5,8 @@ import com.alphabot.repository.NewsArticleRepository;
 import com.alphabot.repository.WatchlistRepository;
 import com.alphabot.service.MarketInsightService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -78,6 +80,38 @@ public class NewsController {
     @GetMapping("/market/signals")
     public ResponseEntity<List<MarketInsightService.TickerSignal>> getMarketSignals() {
         return ResponseEntity.ok(marketInsightService.getMarketSignals());
+    }
+
+    /**
+     * GET /api/news/search — Paginated + keyword search for the News Insight page.
+     *
+     * Params:
+     * q = keyword to search (title / source / tickers / tags), default ""
+     * page = 0-based page index, default 0
+     * size = items per page, default 20
+     * threshold= minimum sentiment score, default -1.0 (all articles)
+     *
+     * Response: Spring Page object with content[] + totalPages + totalElements
+     */
+    @GetMapping("/news/search")
+    public ResponseEntity<Page<NewsArticle>> searchNews(
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "-1.0") double threshold) {
+
+        Page<NewsArticle> result = newsArticleRepository.searchBullishArticles(
+                threshold, q, PageRequest.of(page, size));
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * GET /api/news/sentiment-trend — Daily avg sentiment + article count for last
+     * 30 days.
+     */
+    @GetMapping("/news/sentiment-trend")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> getSentimentTrend() {
+        return ResponseEntity.ok(newsArticleRepository.sentimentTrendByDay());
     }
 
     /**

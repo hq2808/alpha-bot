@@ -1,6 +1,8 @@
 package com.alphabot.controller;
 
+import com.alphabot.entity.VnStock;
 import com.alphabot.entity.Watchlist;
+import com.alphabot.repository.VnStockRepository;
 import com.alphabot.repository.WatchlistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -11,18 +13,25 @@ import java.time.Instant;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/watchlist")
 @RequiredArgsConstructor
+@CrossOrigin(origins = { "http://localhost:4200", "http://frontend:80" })
 public class WatchlistController {
 
     private final WatchlistRepository watchlistRepository;
+    private final VnStockRepository vnStockRepository;
 
-    @GetMapping
+    /** GET /api/stocks — full VN stock catalog */
+    @GetMapping("/api/stocks")
+    public List<VnStock> getStocks() {
+        return vnStockRepository.findAllByOrderBySectorAscTickerAsc();
+    }
+
+    @GetMapping("/api/watchlist")
     public List<Watchlist> getWatchlist() {
         return watchlistRepository.findAll();
     }
 
-    @PostMapping("/{ticker}")
+    @PostMapping("/api/watchlist/{ticker}")
     public ResponseEntity<Watchlist> addTicker(@PathVariable String ticker) {
         String reqTicker = ticker.toUpperCase();
         if (watchlistRepository.existsByTicker(reqTicker)) {
@@ -36,7 +45,7 @@ public class WatchlistController {
         return ResponseEntity.ok(watchlistRepository.save(item));
     }
 
-    @DeleteMapping("/{ticker}")
+    @DeleteMapping("/api/watchlist/{ticker}")
     @Transactional
     public ResponseEntity<Void> removeTicker(@PathVariable String ticker) {
         String reqTicker = ticker.toUpperCase();

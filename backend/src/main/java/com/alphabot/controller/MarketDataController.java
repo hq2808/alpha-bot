@@ -1,7 +1,9 @@
 package com.alphabot.controller;
 
 import com.alphabot.entity.MarketData;
+import com.alphabot.entity.StockQuote;
 import com.alphabot.repository.MarketDataRepository;
+import com.alphabot.repository.StockQuoteRepository;
 import com.alphabot.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +21,24 @@ public class MarketDataController {
 
     private final MarketDataRepository marketDataRepository;
     private final MarketDataService marketDataService;
+    private final StockQuoteRepository stockQuoteRepository;
 
     @GetMapping("/{ticker}")
     public ResponseEntity<List<MarketData>> getHistoricalData(@PathVariable String ticker) {
         return ResponseEntity.ok(getHistoricalDataList(ticker));
+    }
+
+    /**
+     * Endpoint to fetch cached Level-2 real-time data from PostgreSQL
+     */
+    @GetMapping("/vndirect/quotes")
+    public ResponseEntity<Map<String, Object>> getVndirectQuotes() {
+        try {
+            List<StockQuote> quotes = stockQuoteRepository.findAll();
+            return ResponseEntity.ok(Map.of("data", quotes));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to fetch cached data"));
+        }
     }
 
     @PostMapping("/batch")

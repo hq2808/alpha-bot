@@ -120,8 +120,10 @@ public class NewsCrawlerService {
             // Push real-time to WebSocket subscribers
             messagingTemplate.convertAndSend("/topic/news", article);
 
-            // Optional Telegram alert (only if bot-token is configured)
-            if (result.isBullish(alertThreshold)) {
+            // Telegram alert: only if bullish AND article is financially relevant.
+            // Guard against false positives: sports/entertainment articles can score
+            // high due to words like "kỷ lục" (record), "bứt phá" (breakout), etc.
+            if (result.isBullish(alertThreshold) && isFinanciallyRelevant(result)) {
                 alertService.sendBullishAlert(article);
             }
         }
@@ -129,5 +131,34 @@ public class NewsCrawlerService {
         if (newItems > 0) {
             log.info("[Crawler] {} | {} new articles saved.", source, newItems);
         }
+    }
+
+    /**
+     * Guards against false-positive Telegram alerts from sports/entertainment
+     * articles.
+     *
+     * An article is financially relevant if it has:
+     * (a) at least one recognized stock ticker (e.g. FPT, VNM, AAPL), OR
+     * (b) a specific financial domain tag (Vĩ Mô, Ngân Hàng, Bất Động Sản, Cổ Tức,
+     * Chính Sách)
+     *
+     * Articles tagged only [Thị Trường] (the fallback default) are NOT considered
+     * financially relevant on their own, since any article can get this default
+     * tag.
+     *
+     * Example of false positive WITHOUT this guard:
+     * "Yamal phá kỷ lục của Messi" → kỷ lục = VERY_BULLISH → score 0.76 → alert
+     * sent ❌
+     * With guard: no ticker, tag = [Thị Trường] → isFinanciallyRelevant = false ✅
+     */
+    private boolean isFinanciallyRelevant(SentimentAnalyzerService.SentimentResult result) {
+        boolean hasTicker = result.tickers() != null && !result.tickers().isBlank();
+        boolean hasFinancialTag = result.tags() != null && (result.tags().contains("[Vĩ Mô]") ||
+                result.tags().contains("[Ngân Hàng]") ||
+                result.tags().contains("[Bất Động Sản]") ||
+                result.tags().contains("[Cổ Tức]") ||
+                result.tags().contains("[Chính Sách]") ||
+                result.tags().contains("[Công Bố HOSE]"));
+        return hasTicker || hasFinancialTag;
     }
 }

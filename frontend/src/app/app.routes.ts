@@ -25,17 +25,12 @@ export const routes: Routes = [
         title: 'Alpha Bot — Market Intelligence',
     },
     {
-        path: 'watchlist',
+        path: 'price-board',
         loadComponent: () =>
-            import('./pages/watchlist/watchlist.component').then(m => m.WatchlistComponent),
-        title: 'Alpha Bot — Watchlist',
+            import('./pages/price-board/price-board.component').then(m => m.PriceBoardComponent),
+        title: 'Alpha Bot — Bảng Giá',
     },
-    {
-        path: 'settings',
-        loadComponent: () =>
-            import('./pages/settings/settings.component').then(m => m.SettingsComponent),
-        title: 'Alpha Bot — Settings',
-    },
+
     {
         path: '**',
         redirectTo: 'dashboard',

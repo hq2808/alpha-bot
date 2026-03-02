@@ -35,9 +35,12 @@ spring:
 # App-specific settings
 alpha-bot:
   crawler:
-    interval-ms: 300000 # 5 minutes (crawl every 5 min)
+    interval-ms: 60000  # 1 minute — faster pickup for time-sensitive news
     # Vietnamese stock news sources (free, no API key needed)
     # CafeF, VnExpress kinh te, VietnamFinance, Dau tu, Thanh nien kinh te
+  hose:
+    disclosure-url: "https://www.hsx.vn/Modules/Listed/Web/Disclosure"
+    interval-ms: 120000  # 2 minutes — official exchange announcements
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}  # Optional — leave blank to disable
     chat-id: ${TELEGRAM_CHAT_ID:}

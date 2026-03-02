@@ -17,19 +17,16 @@ import { ChatWidgetComponent } from './components/chat-widget/chat-widget.compon
         </div>
         <div class="navbar-links">
           <a routerLink="/dashboard" routerLinkActive="active">
-            🏠 Dashboard
+            📊 Tổng quan
+          </a>
+          <a routerLink="/price-board" routerLinkActive="active">
+            📈 Bảng giá
           </a>
           <a routerLink="/intelligence" routerLinkActive="active">
-            🎯 Intelligence
-          </a>
-          <a routerLink="/watchlist" routerLinkActive="active">
-            ⭐ Watchlist
+            🧠 Phân tích
           </a>
           <a routerLink="/signals" routerLinkActive="active">
-            📰 News Insight
-          </a>
-          <a routerLink="/settings" routerLinkActive="active">
-            ⚙️ Settings
+            📰 Tin tức
           </a>
         </div>
         <div class="navbar-status">

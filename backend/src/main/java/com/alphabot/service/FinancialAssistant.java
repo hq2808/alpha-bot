@@ -22,8 +22,9 @@ public interface FinancialAssistant {
 
                 Please structure the report as follows:
                 1. 🌟 **Tổng Quan Khái Quát**: 1-2 câu tóm tắt tâm lý thị trường chung trong ngày.
-                2. 📰 **Điểm Tin Đáng Chú Ý**: Chọn từ 3 đến 5 tin tức quan trọng nhất có ảnh hưởng lớn đến cổ phiếu hoặc vĩ mô. Format theo dạng: `🔹 [Ticker] Tiêu đề tin tức - Nội dung ngắn gọn.` (nếu tin không có mã cụ thể, bỏ qua Ticker).
-                3. 💡 **Đánh Giá & Triển Vọng AI**: 1-2 câu nhận định nhanh từ AI.
+                2. 📰 **Điểm Tin Đáng Chú Ý**: Chọn từ 3 đến 5 tin tức quan trọng nhất có ảnh hưởng lớn. Format: `🔹 [Ticker] Tiêu đề tin tức - Tóm tắt.`
+                3. 🎯 **Khuyến Nghị Hành Động (Mua/Bán/Nắm Giữ)**: Phân tích sâu các tin tức và đưa ra danh mục khuyến nghị cụ thể Mua/Bán/Nắm giữ cho **nhiều mã chứng khoán (tối thiểu 5-10 mã nếu có dữ liệu)**. Giải thích ngắn gọn lý do cho mỗi mã dựa trên tin tức.
+                4. 💡 **Đánh Giá & Triển Vọng AI**: 1-2 câu nhận định nhanh từ AI.
 
                 Rules:
                 - Output should be purely strictly in Vietnamese.

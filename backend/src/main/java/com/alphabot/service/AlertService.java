@@ -37,21 +37,25 @@ public class AlertService {
         if (article.isAlertSent())
             return;
 
-        // Watchlist filtering
-        List<Watchlist> watchlist = watchlistRepository.findAll();
-        if (!watchlist.isEmpty()) {
-            boolean isWatched = false;
-            String tickers = article.getMentionedTickers();
-            if (tickers != null && !tickers.isBlank()) {
-                for (Watchlist w : watchlist) {
-                    if (tickers.contains(w.getTicker())) {
-                        isWatched = true;
-                        break;
+        // Watchlist filtering (Bypass if it's a test alert)
+        boolean isTestAlert = article.getTitle() != null && article.getTitle().contains("Test Title from AlphaBot!");
+
+        if (!isTestAlert) {
+            List<Watchlist> watchlist = watchlistRepository.findAll();
+            if (!watchlist.isEmpty()) {
+                boolean isWatched = false;
+                String tickers = article.getMentionedTickers();
+                if (tickers != null && !tickers.isBlank()) {
+                    for (Watchlist w : watchlist) {
+                        if (tickers.contains(w.getTicker())) {
+                            isWatched = true;
+                            break;
+                        }
                     }
                 }
-            }
-            if (!isWatched) {
-                return; // Ignore article, not in watchlist
+                if (!isWatched) {
+                    return; // Ignore article, not in watchlist
+                }
             }
         }
 

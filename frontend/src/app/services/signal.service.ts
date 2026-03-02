@@ -46,6 +46,21 @@ export interface WatchlistItem {
     createdAt: string;
 }
 
+export interface NewsPage {
+    content: NewsArticle[];
+    totalPages: number;
+    totalElements: number;
+    number: number;   // current page (0-based)
+    size: number;
+}
+
+export interface VnStock {
+    ticker: string;
+    companyName: string;
+    sector: string;
+    exchange: string;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const SENTIMENT_THRESHOLDS = {
@@ -75,6 +90,11 @@ export class SignalService {
         return this.http.get<NewsArticle[]>(`/api/news/latest?filterByWatchlist=${filterByWatchlist}`);
     }
 
+    /** Full VN stock catalog from DB. */
+    getStocks(): Observable<VnStock[]> {
+        return this.http.get<VnStock[]>('/api/stocks');
+    }
+
     /**
      * Real-time news stream via WebSocket.
      * Properly parses the STOMP message body to NewsArticle.
@@ -90,10 +110,22 @@ export class SignalService {
         return this.http.get<NewsArticle[]>(`/api/news/bullish?threshold=${threshold}&filterByWatchlist=${filterByWatchlist}`);
     }
 
+    /** Paginated keyword search — used by News Insight page. */
+    searchNews(q: string = '', page: number = 0, size: number = 20, threshold: number = -1): Observable<NewsPage> {
+        const params = `q=${encodeURIComponent(q)}&page=${page}&size=${size}&threshold=${threshold}`;
+        return this.http.get<NewsPage>(`/api/news/search?${params}`);
+    }
+
+    /** Daily sentiment trend for last 30 days — used by Intelligence page. */
+    getSentimentTrend(): Observable<{ date: string; avg_sentiment: number; article_count: number }[]> {
+        return this.http.get<any[]>('/api/news/sentiment-trend');
+    }
+
     /** Aggregated market signals for trending tickers. */
     getMarketSignals(): Observable<TickerSignal[]> {
         return this.http.get<TickerSignal[]>('/api/market/signals');
     }
+
 
     /** Historical OHLCV data for a single ticker. */
     getHistoricalData(ticker: string): Observable<MarketData[]> {
