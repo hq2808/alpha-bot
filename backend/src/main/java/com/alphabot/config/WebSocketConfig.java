@@ -22,10 +22,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // SockJS endpoint for Angular to connect to
+        // Raw websocket for standard @stomp/rx-stomp clients
         registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");
+
+        // SockJS fallback if needed
+        registry.addEndpoint("/ws-sockjs")
                 .setAllowedOriginPatterns("*")
-                .withSockJS();
+                .withSockJS()
+        // You can also add interceptors or other SockJS options here if needed
+        ;
     }
 
     @Bean

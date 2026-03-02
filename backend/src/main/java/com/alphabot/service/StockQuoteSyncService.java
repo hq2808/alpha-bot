@@ -1,9 +1,11 @@
 package com.alphabot.service;
 
 import com.alphabot.entity.StockQuote;
-import com.alphabot.repository.StockQuoteRepository;
+import org.springframework.data.redis.core.RedisTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,26 +15,51 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StockQuoteSyncService {
 
-    private final StockQuoteRepository stockQuoteRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final MarketSessionService marketSessionService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     // Using a predefined list of popular VN30 and large cap stocks for the board
     private final String TRACK_LIST = "SSI,VND,HCM,VCI,HPG,HSG,NKG,VHM,VIC,VRE,NVL,DIG,DXG,TCB,MBB,VPB,STB,CTG,VCB,BID,FPT,MWG,PNJ,GAS,PLX,POW,VNM,MSN,SAB,VJC,HVN,GVR,DGC,DPM,DCM,KBC,IDC,VGC";
 
+    // Redis key
+    private static final String REDIS_KEY_QUOTES = "Market:Quotes";
+
+    // Run on Startup to ensure Redis has data even if market is closed
+    @EventListener(ApplicationReadyEvent.class)
+    public void initQuotes() {
+        log.info("Startup: Initializing stock quotes cache...");
+        performSync();
+    }
+
     // Run every 5 seconds
     @Scheduled(fixedDelay = 5000)
     public void syncStockQuotes() {
+        if (!marketSessionService.isMarketOpen()) {
+            log.trace("Market Closed, skip sync/push");
+            return;
+        }
+        performSync();
+    }
+
+    private void performSync() {
         try {
             List<StockQuote> quotesToSave = new ArrayList<>();
             Instant now = Instant.now();
@@ -105,11 +132,39 @@ public class StockQuoteSyncService {
             }
 
             if (!quotesToSave.isEmpty()) {
-                stockQuoteRepository.saveAll(quotesToSave);
+                // Save to Redis Hash instead of postgres
+                for (StockQuote q : quotesToSave) {
+                    redisTemplate.opsForHash().put(REDIS_KEY_QUOTES, q.getTicker(), q);
+                }
+                // CLUSTER SYNC: Publish to Redis instead of direct WebSocket
+                // This allows 1M users spread across multiple nodes to receive the update
+                try {
+                    String json = objectMapper.writeValueAsString(quotesToSave);
+                    redisTemplate.convertAndSend("market-ticks", json);
+                } catch (Exception e) {
+                    log.error("Failed to serialize market ticks for Redis Pub/Sub", e);
+                }
             }
 
         } catch (Exception e) {
             log.error("Failed to sync stock quotes from CafeF: {}", e.getMessage());
         }
+    }
+
+    public Optional<StockQuote> getLatestQuote(String ticker) {
+        Object data = redisTemplate.opsForHash().get(REDIS_KEY_QUOTES, ticker);
+        if (data != null) {
+            try {
+                if (data instanceof StockQuote) {
+                    return Optional.of((StockQuote) data);
+                }
+                // Fallback for LinkedHashMap conversion
+                StockQuote quote = objectMapper.convertValue(data, StockQuote.class);
+                return Optional.of(quote);
+            } catch (Exception e) {
+                log.error("Error parsing StockQuote from Redis for {}: {}", ticker, e.getMessage());
+            }
+        }
+        return Optional.empty();
     }
 }

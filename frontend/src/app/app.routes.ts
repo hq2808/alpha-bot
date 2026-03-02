@@ -32,6 +32,12 @@ export const routes: Routes = [
     },
 
     {
+        path: 'portfolio',
+        loadComponent: () =>
+            import('./pages/portfolio/portfolio.component').then(m => m.PortfolioComponent),
+        title: 'Alpha Bot — AI Portfolio',
+    },
+    {
         path: '**',
         redirectTo: 'dashboard',
     },

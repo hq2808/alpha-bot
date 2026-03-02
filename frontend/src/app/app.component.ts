@@ -28,6 +28,9 @@ import { ChatWidgetComponent } from './components/chat-widget/chat-widget.compon
           <a routerLink="/signals" routerLinkActive="active">
             📰 Tin tức
           </a>
+          <a routerLink="/portfolio" routerLinkActive="active">
+            💰 Paper Trading
+          </a>
         </div>
         <div class="navbar-status">
           <span class="status-dot" [class.connected]="true"></span>

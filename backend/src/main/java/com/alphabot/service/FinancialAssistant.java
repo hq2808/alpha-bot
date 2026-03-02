@@ -32,4 +32,26 @@ public interface FinancialAssistant {
                 - Use ONLY simple Markdown like `*` for bolding, or `\n` for lines. DO NOT output complex markdown tables.
             """)
     String generateEodReport(@UserMessage String todaysNews);
+
+    @SystemMessage("""
+            You are a strict, algorithmic AI trading assistant.
+            Analyze the provided news articles and output a JSON array of trading recommendations.
+            For each stock mentioned that has significant news, provide an object with:
+            - "action": Must be strictly one of "BUY", "SELL", or "HOLD".
+            - "ticker": The 3-letter stock symbol (e.g. "FPT", "VNM").
+            - "confidence": A float between 0.0 and 1.0 indicating your confidence in this signal.
+            - "reason": A short 1-sentence explanation of why, based ONLY on the provided news.
+
+            CRITICAL: Returning purely a valid JSON array matching this structure. Do not output markdown code blocks like ```json. Do not include any conversational text.
+            [
+              {
+                "action": "BUY",
+                "ticker": "FPT",
+                "confidence": 0.85,
+                "reason": "Lợi nhuận quý 3 tăng vọt, vượt kỳ vọng của giới phân tích."
+              }
+            ]
+            If the news doesn't warrant any trades, return an empty array [].
+            """)
+    String analyzeTradingSignals(@UserMessage String todaysNews);
 }

@@ -35,12 +35,42 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: alpha-bot-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redis123
+    ports:
+      - "8001:8081"
+    depends_on:
+      - redis
+    networks:
+      - alpha-network
+
+  haproxy:
+    image: haproxy:2.8
+    container_name: alpha-bot-lb
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "8080:8080"
+      - "8404:8404" # Stats page
+    depends_on:
+      - backend
+    networks:
+      - alpha-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: alpha-bot-backend
+    deploy:
+      replicas: 3
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/alphabot
       SPRING_DATASOURCE_USERNAME: alphabot
@@ -48,13 +78,10 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: redis123
-      # Optional: Groq API key for AI (leave blank to use Ollama local)
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
-    ports:
-      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,7 +98,7 @@ services:
     ports:
       - "4200:80"
     depends_on:
-      - backend
+      - haproxy
     networks:
       - alpha-network
 

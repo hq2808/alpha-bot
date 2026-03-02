@@ -1,0 +1,106 @@
+<div class="portfolio-container">
+  <div class="header">
+    <div class="title-section">
+      <h2>AI Auto Trader 🤖</h2>
+      <p>Danh mục đầu tư tự động vận hành bởi hệ thống AI Phân tích tin tức</p>
+    </div>
+  </div>
+
+  <div class="stats-grid" *ngIf="summary">
+    <div class="stat-card">
+      <div class="label">Tổng tài sản (Equity)</div>
+      <div class="value">{{ summary.totalEquity | number:'1.0-0' }} ₫</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Tiền mặt</div>
+      <div class="value">{{ summary.cashBalance | number:'1.0-0' }} ₫</div>
+    </div>
+    <div class="stat-card" [class.positive]="summary.pnlValue >= 0" [class.negative]="summary.pnlValue < 0">
+      <div class="label">Lợi nhuận (PnL)</div>
+      <div class="value">{{ summary.pnlValue > 0 ? '+' : '' }}{{ summary.pnlValue | number:'1.0-0' }} ₫
+        ({{ summary.pnlPercent | number:'1.2-2' }}%)</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="label">Trạng thái Bot</div>
+      <div class="value active">Đang chạy 🟢</div>
+    </div>
+  </div>
+
+  <!-- Chart Section -->
+  <div class="chart-section">
+    <div class="section-title">
+      <h3>📈 Tăng trưởng tài sản (Equity Curve)</h3>
+    </div>
+    <div class="chart-container" #chartContainer></div>
+  </div>
+
+  <!-- Two Column Layout -->
+  <div class="details-grid">
+
+    <!-- Positions -->
+    <div class="card positions-card">
+      <div class="card-header">
+        <h3>💼 Cổ phiếu nắm giữ</h3>
+      </div>
+      <div class="card-body p-0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã</th>
+              <th class="text-right">Khối lượng</th>
+              <th class="text-right">Giá vốn</th>
+              <th class="text-right">Lãi/Lỗ tạm tính</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="positions.length === 0">
+              <td colspan="4" class="text-center empty-state">Chưa nắm giữ cổ phiếu nào</td>
+            </tr>
+            <tr *ngFor="let pos of positions">
+              <td class="font-bold text-blue">{{ pos.ticker }}</td>
+              <td class="text-right">{{ pos.quantity | number }}</td>
+              <td class="text-right">{{ pos.averagePrice | number:'1.0-0' }} ₫</td>
+              <td class="text-right">
+                <span [class.text-green]="pos.pnlValue >= 0" [class.text-red]="pos.pnlValue < 0" class="font-bold">
+                  {{ pos.pnlValue > 0 ? '+' : '' }}{{ pos.pnlValue | number:'1.0-0' }} ₫
+                  <small>({{ pos.pnlPercent | number:'1.2-2' }}%)</small>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card transactions-card">
+      <div class="card-header">
+        <h3>⚡ Lịch sử lệnh AI</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="transaction-list">
+          <div class="empty-state text-center" *ngIf="transactions.length === 0">
+            Chưa có giao dịch nào
+          </div>
+
+          <div class="transaction-item" *ngFor="let t of transactions">
+            <div class="tx-main">
+              <div class="tx-badge" [class.buy]="t.type === 'BUY'" [class.sell]="t.type === 'SELL'">
+                {{ t.type }}
+              </div>
+              <div class="tx-details">
+                <div class="tx-title">
+                  <strong>{{ t.quantity | number }}</strong> {{ t.ticker }}
+                  <span class="tx-price">&#64; {{ t.price | number:'1.0-0' }} ₫</span>
+                </div>
+                <div class="tx-reason">{{ t.reason }}</div>
+              </div>
+            </div>
+            <div class="tx-time">{{ t.createdAt | date:'dd/MM HH:mm' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

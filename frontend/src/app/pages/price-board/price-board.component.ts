@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Subscription, interval } from 'rxjs';
 import { SignalService, MarketData } from '../../services/signal.service';
+import { WebsocketService } from '../../services/websocket.service';
 import { MiniChartComponent } from '../../components/mini-chart/mini-chart.component';
 
 /**
@@ -37,7 +38,7 @@ export interface VndPriceData {
       <div class="page-header">
         <div>
           <h1>📈 Bảng Giá Chứng Khoán</h1>
-          <p class="subtitle">Dữ liệu thị trường (Real-time từ VNDirect) · Tự động cập nhật mỗi 5s</p>
+          <p class="subtitle">Dữ liệu thị trường (Real-time từ VNDirect) · Streaming qua WebSocket ⚡</p>
         </div>
       </div>
       
@@ -254,12 +255,15 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
   private sub?: Subscription;
   private chartSub?: Subscription;
 
-  constructor(private http: HttpClient, private signalService: SignalService) { }
+  constructor(
+    private http: HttpClient,
+    private signalService: SignalService,
+    private wsService: WebsocketService
+  ) { }
 
   ngOnInit() {
-    this.fetchData();
-    // Auto refresh every 5 seconds
-    this.sub = interval(5000).subscribe(() => this.fetchData());
+    this.fetchDataInitial(); // REST fallback for immediate load
+    this.subscribeToMarketTicks();
   }
 
   ngOnDestroy() {
@@ -267,7 +271,20 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
     this.chartSub?.unsubscribe();
   }
 
-  fetchData() {
+  subscribeToMarketTicks() {
+    this.sub = this.wsService.getMarketTicks().subscribe({
+      next: (data) => {
+        if (data && data.length > 0) {
+          // Merge with existing data to prevent full dom flush if possible
+          // But for simplicity, we can do a full replace:
+          this.displayData = data.sort((a, b) => a.code.localeCompare(b.code));
+        }
+      },
+      error: (err) => console.error('WebSocket error:', err)
+    });
+  }
+
+  fetchDataInitial() {
     // Calling our Spring Boot proxy endpoint to bypass CORS and load cached DB data
     const url = `/api/market-data/vndirect/quotes`;
     this.http.get<any>(url).subscribe({

@@ -80,7 +80,7 @@ export class SignalService {
 
     constructor(private http: HttpClient) {
         this.stomp.configure({
-            brokerURL: `ws://${window.location.hostname}:8080/ws/websocket`,
+            brokerURL: `ws://${window.location.hostname}:8080/ws`,
         });
         this.stomp.activate();
     }
