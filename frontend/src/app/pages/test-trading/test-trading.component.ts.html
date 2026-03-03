@@ -1,0 +1,148 @@
+<div class="test-trading-page">
+    <div class="page-header">
+        <h1>💰 Chế độ Test Trading</h1>
+        <p>Tự thực hiện mua bán với vốn mặc định 100M để kiểm tra chiến thuật của bạn.</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid" *ngIf="summary">
+        <div class="card summary-card">
+            <span class="label">Tổng Tài Sản</span>
+            <span class="value">{{ summary.totalEquity.toLocaleString() }} VND</span>
+        </div>
+        <div class="card summary-card">
+            <span class="label">Tiền Mặt</span>
+            <span class="value">{{ summary.cashBalance.toLocaleString() }} VND</span>
+        </div>
+        <div class="card summary-card" [class.positive]="summary.pnlValue > 0" [class.negative]="summary.pnlValue < 0">
+            <span class="label">Lãi / Lỗ</span>
+            <span class="value">{{ summary.pnlValue > 0 ? '+' : '' }}{{ summary.pnlValue.toLocaleString() }} ({{
+                summary.pnlPercent }}%)</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="left-panel">
+            <!-- Trade Form -->
+            <div class="card trade-card">
+                <h3>🚀 Đặt Lệnh Mới</h3>
+                <div class="form-group">
+                    <label>Mã Chứng Khoán</label>
+                    <input type="text" [(ngModel)]="ticker" placeholder="Ví dụ: FPT"
+                        (input)="ticker = ticker.toUpperCase()">
+                </div>
+
+                <div class="form-group">
+                    <label>Loại Lệnh</label>
+                    <div class="action-toggle">
+                        <button [class.active-buy]="action === 'BUY'" (click)="action = 'BUY'">MUA</button>
+                        <button [class.active-sell]="action === 'SELL'" (click)="action = 'SELL'">BÁN</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Khối Lượng (Cổ phiếu)</label>
+                    <input type="number" [(ngModel)]="quantity" step="100" min="100">
+                </div>
+
+                <div class="form-group">
+                    <label>Ghi Chú / Lý Do</label>
+                    <textarea [(ngModel)]="reason" rows="2"></textarea>
+                </div>
+
+                <div class="form-info" *ngIf="action === 'SELL'">
+                    <span *ngIf="hasPosition(ticker)">Bạn đang sở hữu: <b>{{ getPositionQuantity(ticker) }}</b> {{
+                        ticker }}</span>
+                    <span class="error-text" *ngIf="ticker && !hasPosition(ticker)">Bạn không có mã này trong danh
+                        mục</span>
+                </div>
+
+                <button class="submit-btn" [class.buy-btn]="action === 'BUY'" [class.sell-btn]="action === 'SELL'"
+                    [disabled]="loading || (action === 'SELL' && !hasPosition(ticker))" (click)="executeTrade()">
+                    {{ loading ? 'Đang thực hiện...' : (action === 'BUY' ? 'Xác Nhận Mua' : 'Xác Nhận Bán') }}
+                </button>
+
+                <div class="alert-box" *ngIf="message" [class.error]="isError">
+                    {{ message }}
+                </div>
+            </div>
+
+            <!-- Quick Reset -->
+            <div class="card reset-card">
+                <p>Muốn bắt đầu lại từ đầu?</p>
+                <button class="reset-btn" (click)="resetPortfolio()">Reset Danh Mục</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <!-- Positions -->
+            <div class="card">
+                <h3>📂 Danh Mục Hiện Tại</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Số lượng</th>
+                            <th>Giá TB</th>
+                            <th>Lãi/Lỗ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let pos of positions">
+                            <td><b>{{ pos.ticker }}</b></td>
+                            <td>{{ pos.quantity }}</td>
+                            <td>{{ pos.averagePrice.toLocaleString() }}</td>
+                            <td [class.positive]="pos.pnlValue > 0" [class.negative]="pos.pnlValue < 0">
+                                {{ pos.pnlValue > 0 ? '+' : '' }}{{ pos.pnlPercent }}%
+                            </td>
+                        </tr>
+                        <tr *ngIf="positions.length === 0">
+                            <td colspan="4" class="empty-state">Chưa có cổ phiếu nào.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card transaction-card">
+                <h3>📜 Nhật Ký Giao Dịch</h3>
+                <div class="tx-list">
+                    <div class="tx-item" *ngFor="let tx of transactions">
+                        <div class="tx-header">
+                            <span class="badge" [class.buy]="tx.type === 'BUY'" [class.sell]="tx.type === 'SELL'">{{
+                                tx.type }}</span>
+                            <span class="ticker">{{ tx.ticker }}</span>
+                            <span class="date">{{ tx.createdAt | date:'HH:mm dd/MM' }}</span>
+                        </div>
+                        <div class="tx-details">
+                            <div class="main-info">
+                                <span>{{ tx.quantity }} CP &#64; {{ tx.price.toLocaleString() }} VND</span>
+                                <span class="total">Tổng: {{ tx.totalValue.toLocaleString() }} VND</span>
+                            </div>
+
+                            <!-- PnL Info for SELL -->
+                            <div class="pnl-info" *ngIf="tx.type === 'SELL' && tx.pnlValue !== null">
+                                <div class="detail-row">
+                                    <span class="detail-label">Giá vốn:</span>
+                                    <span>{{ tx.costPrice?.toLocaleString() }} VND</span>
+                                </div>
+                                <div class="detail-row" [class.positive]="tx.pnlValue! > 0"
+                                    [class.negative]="tx.pnlValue! < 0">
+                                    <span class="detail-label">Lãi/Lỗ:</span>
+                                    <span class="pnl-value">
+                                        {{ tx.pnlValue! > 0 ? '+' : '' }}{{ tx.pnlValue?.toLocaleString() }}
+                                        ({{ tx.pnlPercent }}%)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tx-reason" *ngIf="tx.reason">
+                            "{{ tx.reason }}"
+                        </div>
+                    </div>
+                    <div *ngIf="transactions.length === 0" class="empty-state">Chưa có giao dịch.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

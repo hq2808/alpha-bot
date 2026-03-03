@@ -29,6 +29,9 @@ export interface PortfolioTransaction {
   price: number;
   totalValue: number;
   reason: string;
+  costPrice?: number;
+  pnlValue?: number;
+  pnlPercent?: number;
   createdAt: string;
 }
 
@@ -62,5 +65,26 @@ export class PortfolioService {
 
   getChartData(): Observable<PortfolioSnapshot[]> {
     return this.http.get<PortfolioSnapshot[]>(`${this.apiUrl}/chart`);
+  }
+
+  // --- Manual Trading ---
+  getManualSummary(): Observable<PortfolioSummary> {
+    return this.http.get<PortfolioSummary>(`${this.apiUrl}/manual/summary`);
+  }
+
+  getManualPositions(): Observable<PortfolioPosition[]> {
+    return this.http.get<PortfolioPosition[]>(`${this.apiUrl}/manual/positions`);
+  }
+
+  getManualTransactions(): Observable<PortfolioTransaction[]> {
+    return this.http.get<PortfolioTransaction[]>(`${this.apiUrl}/manual/transactions`);
+  }
+
+  executeManualTrade(ticker: string, quantity: number, action: string, reason: string = 'Manual trade'): Observable<any> {
+    return this.http.post(`${this.apiUrl}/manual/trade`, { ticker, quantity, action, reason }, { responseType: 'text' });
+  }
+
+  resetManualPortfolio(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/manual/reset`, {}, { responseType: 'text' });
   }
 }

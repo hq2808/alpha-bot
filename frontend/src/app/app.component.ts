@@ -31,6 +31,9 @@ import { ChatWidgetComponent } from './components/chat-widget/chat-widget.compon
           <a routerLink="/portfolio" routerLinkActive="active">
             💰 Paper Trading
           </a>
+          <a routerLink="/test-trading" routerLinkActive="active">
+            🛡️ Test Trading
+          </a>
         </div>
         <div class="navbar-status">
           <span class="status-dot" [class.connected]="true"></span>

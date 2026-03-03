@@ -46,6 +46,8 @@ alpha-bot:
     chat-id: ${TELEGRAM_CHAT_ID:}
   alert:
     sentiment-threshold: 0.6  # Alert when score >= 0.6
+  manual:
+    initial-capital: 100000000
 
 server:
   port: 8080

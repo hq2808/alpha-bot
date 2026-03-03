@@ -3,13 +3,12 @@ package com.alphabot.controller;
 import com.alphabot.entity.*;
 import com.alphabot.repository.*;
 import com.alphabot.service.AiTradingEngine;
+import com.alphabot.service.ManualTradingService;
 import com.alphabot.service.PortfolioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,30 +18,55 @@ import java.util.Map;
 public class PortfolioController {
 
     private final PortfolioService portfolioService;
+    private final ManualTradingService manualTradingService;
     private final AiTradingEngine aiTradingEngine;
-    private final PortfolioPositionRepository positionRepository;
+    private final PortfolioRepository portfolioRepository;
     private final PortfolioTransactionRepository transactionRepository;
     private final PortfolioSnapshotRepository snapshotRepository;
 
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> getSummary() {
         Portfolio portfolio = portfolioService.getDefaultPortfolio();
-        BigDecimal totalEquity = portfolioService.calculateTotalEquity(portfolio);
+        return ResponseEntity.ok(portfolioService.getSummaryData(portfolio));
+    }
 
-        // Caculate simple PnL vs Initial Capital
-        BigDecimal pnlValue = totalEquity.subtract(portfolio.getInitialCapital());
-        BigDecimal pnlPercent = pnlValue.divide(portfolio.getInitialCapital(), 4, java.math.RoundingMode.HALF_UP)
-                .multiply(new BigDecimal("100"));
+    @GetMapping("/manual/summary")
+    public ResponseEntity<Map<String, Object>> getManualSummary() {
+        return ResponseEntity.ok(manualTradingService.getSummary());
+    }
 
-        Map<String, Object> summary = new HashMap<>();
-        summary.put("name", portfolio.getName());
-        summary.put("initialCapital", portfolio.getInitialCapital());
-        summary.put("cashBalance", portfolio.getCashBalance());
-        summary.put("totalEquity", totalEquity);
-        summary.put("pnlValue", pnlValue);
-        summary.put("pnlPercent", pnlPercent);
+    @GetMapping("/manual/positions")
+    public ResponseEntity<List<Map<String, Object>>> getManualPositions() {
+        Portfolio portfolio = portfolioRepository.findByUserIdAndType(1L, PortfolioType.MANUAL)
+                .orElseThrow(() -> new RuntimeException("Manual portfolio not found"));
+        return ResponseEntity.ok(portfolioService.getEnrichedPositions(portfolio));
+    }
 
-        return ResponseEntity.ok(summary);
+    @GetMapping("/manual/transactions")
+    public ResponseEntity<List<PortfolioTransaction>> getManualTransactions() {
+        Portfolio portfolio = portfolioRepository.findByUserIdAndType(1L, PortfolioType.MANUAL)
+                .orElseThrow(() -> new RuntimeException("Manual portfolio not found"));
+        return ResponseEntity.ok(transactionRepository.findByPortfolioIdOrderByCreatedAtDesc(portfolio.getId()));
+    }
+
+    @PostMapping("/manual/trade")
+    public ResponseEntity<Object> executeManualTrade(@RequestBody com.alphabot.dto.TradeOrderRequest order) {
+        try {
+            manualTradingService.executeTrade(order);
+            return ResponseEntity.ok("Trade executed successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/manual/reset")
+    public ResponseEntity<Object> resetManualPortfolio() {
+        try {
+            manualTradingService.resetPortfolio();
+            return ResponseEntity.ok("Manual portfolio reset successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/positions")

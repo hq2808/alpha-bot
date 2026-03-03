@@ -183,6 +183,25 @@ public class PortfolioService {
         return portfolio.getCashBalance().add(stockValue);
     }
 
+    public java.util.Map<String, Object> getSummaryData(Portfolio portfolio) {
+        BigDecimal totalEquity = calculateTotalEquity(portfolio);
+        BigDecimal pnlValue = totalEquity.subtract(portfolio.getInitialCapital());
+        BigDecimal pnlPercent = BigDecimal.ZERO;
+        if (portfolio.getInitialCapital().compareTo(BigDecimal.ZERO) > 0) {
+            pnlPercent = pnlValue.divide(portfolio.getInitialCapital(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+        }
+
+        java.util.Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("name", portfolio.getName());
+        summary.put("initialCapital", portfolio.getInitialCapital());
+        summary.put("cashBalance", portfolio.getCashBalance());
+        summary.put("totalEquity", totalEquity);
+        summary.put("pnlValue", pnlValue);
+        summary.put("pnlPercent", pnlPercent);
+        return summary;
+    }
+
     public List<java.util.Map<String, Object>> getEnrichedPositions(Portfolio portfolio) {
         List<PortfolioPosition> positions = positionRepository.findByPortfolioId(portfolio.getId());
         List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();

@@ -44,6 +44,15 @@ public class PortfolioTransaction {
     @Column(columnDefinition = "TEXT")
     private String reason;
 
+    @Column(name = "cost_price", precision = 19, scale = 4)
+    private BigDecimal costPrice;
+
+    @Column(name = "pnl_value", precision = 19, scale = 4)
+    private BigDecimal pnlValue;
+
+    @Column(name = "pnl_percent", precision = 19, scale = 4)
+    private BigDecimal pnlPercent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

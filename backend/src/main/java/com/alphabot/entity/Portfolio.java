@@ -11,7 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "portfolios")
+@Table(name = "portfolios", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "user_id", "type" })
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +22,13 @@ public class Portfolio {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PortfolioType type;
 
     @Column(nullable = false)
     private String name;

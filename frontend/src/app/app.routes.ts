@@ -38,6 +38,12 @@ export const routes: Routes = [
         title: 'Alpha Bot — AI Portfolio',
     },
     {
+        path: 'test-trading',
+        loadComponent: () =>
+            import('./pages/test-trading/test-trading.component').then(m => m.TestTradingComponent),
+        title: 'Alpha Bot — Test Trading',
+    },
+    {
         path: '**',
         redirectTo: 'dashboard',
     },
