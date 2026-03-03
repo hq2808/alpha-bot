@@ -47,30 +47,14 @@ services:
     networks:
       - alpha-network
 
-  haproxy:
-    image: haproxy:2.8
-    container_name: alpha-bot-lb
-    ulimits:
-      nproc: 65535
-      nofile:
-        soft: 1048576
-        hard: 1048576
-    volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    ports:
-      - "8080:8080"
-      - "8404:8404" # Stats page
-    depends_on:
-      - backend
-    networks:
-      - alpha-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    deploy:
-      replicas: 3
+    container_name: alpha-bot-backend
+    ports:
+      - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/alphabot
       SPRING_DATASOURCE_USERNAME: alphabot
@@ -98,7 +82,7 @@ services:
     ports:
       - "4200:80"
     depends_on:
-      - haproxy
+      - backend
     networks:
       - alpha-network
 
