@@ -1,5 +1,6 @@
 package com.alphabot.controller;
 
+import com.alphabot.dto.SentimentTrendResponse;
 import com.alphabot.entity.NewsArticle;
 import com.alphabot.repository.NewsArticleRepository;
 import com.alphabot.repository.WatchlistRepository;
@@ -10,13 +11,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin(origins = { "http://localhost:4200", "http://frontend:80" })
+@io.swagger.v3.oas.annotations.tags.Tag(name = "News & Sentiments", description = "Endpoints for financial news, AI sentiment analysis, and market signals")
 public class NewsController {
 
     private final NewsArticleRepository newsArticleRepository;
@@ -30,6 +34,7 @@ public class NewsController {
      * Optionally filtered by user's watchlist.
      */
     @GetMapping("/news/latest")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get latest news", description = "Returns the 20 most recent articles with AI analysis. Can be filtered by user watchlist.")
     public ResponseEntity<List<NewsArticle>> getLatestNews(
             @RequestParam(defaultValue = "false") boolean filterByWatchlist) {
         if (filterByWatchlist) {
@@ -51,6 +56,7 @@ public class NewsController {
      * threshold.
      */
     @GetMapping("/news/bullish")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get bullish news", description = "Returns bullish articles above a specific sentiment threshold.")
     public ResponseEntity<List<NewsArticle>> getBullishNews(
             @RequestParam(defaultValue = "0.5") double threshold,
             @RequestParam(defaultValue = "false") boolean filterByWatchlist) {
@@ -78,6 +84,7 @@ public class NewsController {
      * based on news.
      */
     @GetMapping("/market/signals")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get market signals", description = "Returns trending tickers with buy/sell signals based on real-time news analysis.")
     public ResponseEntity<List<MarketInsightService.TickerSignal>> getMarketSignals() {
         return ResponseEntity.ok(marketInsightService.getMarketSignals());
     }
@@ -94,6 +101,7 @@ public class NewsController {
      * Response: Spring Page object with content[] + totalPages + totalElements
      */
     @GetMapping("/news/search")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Search news articles", description = "Perform paginated keyword and ticker search on news articles with sentiment filtering.")
     public ResponseEntity<Page<NewsArticle>> searchNews(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) String ticker,
@@ -117,14 +125,24 @@ public class NewsController {
      * 30 days.
      */
     @GetMapping("/news/sentiment-trend")
-    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> getSentimentTrend() {
-        return ResponseEntity.ok(newsArticleRepository.sentimentTrendByDay());
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get sentiment trend", description = "Returns daily average sentiment and article count for the last 30 days.")
+    public ResponseEntity<List<SentimentTrendResponse>> getSentimentTrend() {
+        List<Map<String, Object>> trendData = newsArticleRepository.sentimentTrendByDay();
+        List<SentimentTrendResponse> result = trendData.stream()
+                .map(m -> SentimentTrendResponse.builder()
+                        .date(LocalDate.parse((String) m.get("date")))
+                        .avgSentiment(((Number) m.get("avg_sentiment")).doubleValue())
+                        .articleCount(((Number) m.get("article_count")).longValue())
+                        .build())
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     /**
      * GET /api/health — Simple health check endpoint.
      */
     @GetMapping("/health")
+    @io.swagger.v3.oas.annotations.Operation(summary = "API Health Check", description = "Simple endpoint to verify if the News API is operational.")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of("status", "OK", "version", "1.1.0"));
     }
@@ -133,6 +151,7 @@ public class NewsController {
      * GET /api/test-alert — Temporary endpoint to test Telegram notifications.
      */
     @GetMapping("/test-alert")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Trigger test alert", description = "Sends a dummy bullish alert to Telegram for testing purposes.")
     public ResponseEntity<String> testAlert() {
         NewsArticle dummyArticle = new NewsArticle();
         dummyArticle.setTitle("Test Title from AlphaBot!");
@@ -151,6 +170,7 @@ public class NewsController {
      * report.
      */
     @GetMapping("/test-eod-report")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Trigger test EOD report", description = "Manually generates and dispatches the End-Of-Day Telegram summary report.")
     public ResponseEntity<String> testEodReport() {
         reportService.generateAndSendEodReport();
         return ResponseEntity.ok("EOD Telegram report generated and dispatched.");

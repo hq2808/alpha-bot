@@ -55,12 +55,25 @@ server:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    enabled: ${SPRINGDOC_ENABLED:true}
   api-docs:
     path: /api-docs
+    enabled: ${SPRINGDOC_ENABLED:true}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 # AI Assistant Config (Groq via OpenAI compatible API)
 langchain4j:
-  open-ai:
+  openai:
     chat-model:
       base-url: https://api.groq.com/openai/v1
       api-key: ${GROQ_API_KEY:gsk_placeholder}

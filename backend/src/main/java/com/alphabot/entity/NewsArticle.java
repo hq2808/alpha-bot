@@ -4,12 +4,14 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 @Entity
 @Table(name = "news_articles")
 @Data
 @NoArgsConstructor
+@Schema(description = "Financial news article with AI-generated sentiment and summary")
 public class NewsArticle {
 
     @Id

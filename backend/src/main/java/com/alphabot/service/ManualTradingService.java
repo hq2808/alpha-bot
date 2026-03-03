@@ -1,5 +1,6 @@
 package com.alphabot.service;
 
+import com.alphabot.dto.PortfolioSummaryResponse;
 import com.alphabot.dto.TradeExecutedEvent;
 import com.alphabot.dto.TradeOrderRequest;
 import com.alphabot.entity.*;
@@ -16,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -154,7 +154,7 @@ public class ManualTradingService {
     }
 
     @Cacheable(value = "portfolioSummary", key = "#userId")
-    public Map<String, Object> getSummary(Long userId) {
+    public PortfolioSummaryResponse getSummary(Long userId) {
         Portfolio portfolio = portfolioRepository.findByUserIdAndType(userId, PortfolioType.MANUAL)
                 .orElseThrow(() -> new RuntimeException("Portfolio not found"));
 
@@ -166,13 +166,14 @@ public class ManualTradingService {
                     .multiply(new BigDecimal("100"));
         }
 
-        return Map.of(
-                "name", portfolio.getName(),
-                "initialCapital", portfolio.getInitialCapital(),
-                "cashBalance", portfolio.getCashBalance(),
-                "totalEquity", totalEquity,
-                "pnlValue", pnlValue,
-                "pnlPercent", pnlPercent);
+        return PortfolioSummaryResponse.builder()
+                .name(portfolio.getName())
+                .initialCapital(portfolio.getInitialCapital())
+                .cashBalance(portfolio.getCashBalance())
+                .totalEquity(totalEquity)
+                .pnlValue(pnlValue)
+                .pnlPercent(pnlPercent)
+                .build();
     }
 
     private void saveTransaction(Portfolio portfolio, String ticker, String type, int quantity, BigDecimal price,
@@ -204,7 +205,7 @@ public class ManualTradingService {
         resetPortfolio(DEFAULT_USER_ID);
     }
 
-    public Map<String, Object> getSummary() {
+    public PortfolioSummaryResponse getSummary() {
         return getSummary(DEFAULT_USER_ID);
     }
 }

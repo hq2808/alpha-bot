@@ -3,6 +3,8 @@ package com.alphabot.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 @Entity
 @Table(name = "vn_stocks")
 @Getter
@@ -10,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "Represents a Vietnam stock ticker in the system catalog")
 public class VnStock {
     @Id
     @Column(length = 10)

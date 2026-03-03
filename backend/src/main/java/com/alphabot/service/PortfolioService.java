@@ -1,5 +1,7 @@
 package com.alphabot.service;
 
+import com.alphabot.dto.EnrichedPositionResponse;
+import com.alphabot.dto.PortfolioSummaryResponse;
 import com.alphabot.dto.TradeOrderRequest;
 import com.alphabot.entity.*;
 import com.alphabot.repository.*;
@@ -183,7 +185,7 @@ public class PortfolioService {
         return portfolio.getCashBalance().add(stockValue);
     }
 
-    public java.util.Map<String, Object> getSummaryData(Portfolio portfolio) {
+    public PortfolioSummaryResponse getSummaryData(Portfolio portfolio) {
         BigDecimal totalEquity = calculateTotalEquity(portfolio);
         BigDecimal pnlValue = totalEquity.subtract(portfolio.getInitialCapital());
         BigDecimal pnlPercent = BigDecimal.ZERO;
@@ -192,27 +194,21 @@ public class PortfolioService {
                     .multiply(new BigDecimal("100"));
         }
 
-        java.util.Map<String, Object> summary = new java.util.HashMap<>();
-        summary.put("name", portfolio.getName());
-        summary.put("initialCapital", portfolio.getInitialCapital());
-        summary.put("cashBalance", portfolio.getCashBalance());
-        summary.put("totalEquity", totalEquity);
-        summary.put("pnlValue", pnlValue);
-        summary.put("pnlPercent", pnlPercent);
-        return summary;
+        return PortfolioSummaryResponse.builder()
+                .name(portfolio.getName())
+                .initialCapital(portfolio.getInitialCapital())
+                .cashBalance(portfolio.getCashBalance())
+                .totalEquity(totalEquity)
+                .pnlValue(pnlValue)
+                .pnlPercent(pnlPercent)
+                .build();
     }
 
-    public List<java.util.Map<String, Object>> getEnrichedPositions(Portfolio portfolio) {
+    public List<EnrichedPositionResponse> getEnrichedPositions(Portfolio portfolio) {
         List<PortfolioPosition> positions = positionRepository.findByPortfolioId(portfolio.getId());
-        List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        List<EnrichedPositionResponse> result = new java.util.ArrayList<>();
 
         for (PortfolioPosition pos : positions) {
-            java.util.Map<String, Object> map = new java.util.HashMap<>();
-            map.put("id", pos.getId());
-            map.put("ticker", pos.getTicker());
-            map.put("quantity", pos.getQuantity());
-            map.put("averagePrice", pos.getAveragePrice());
-
             Optional<StockQuote> quoteOpt = stockQuoteService.getLatestQuote(pos.getTicker());
             BigDecimal currentPrice = pos.getAveragePrice();
 
@@ -225,8 +221,6 @@ public class PortfolioService {
                 }
             }
 
-            map.put("currentPrice", currentPrice);
-
             BigDecimal currentTotal = currentPrice.multiply(new BigDecimal(pos.getQuantity()));
             BigDecimal costTotal = pos.getAveragePrice().multiply(new BigDecimal(pos.getQuantity()));
             BigDecimal pnlValue = currentTotal.subtract(costTotal);
@@ -236,10 +230,15 @@ public class PortfolioService {
                 pnlPercent = pnlValue.divide(costTotal, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
             }
 
-            map.put("pnlValue", pnlValue);
-            map.put("pnlPercent", pnlPercent);
-
-            result.add(map);
+            result.add(EnrichedPositionResponse.builder()
+                    .id(pos.getId())
+                    .ticker(pos.getTicker())
+                    .quantity(pos.getQuantity())
+                    .averagePrice(pos.getAveragePrice())
+                    .currentPrice(currentPrice)
+                    .pnlValue(pnlValue)
+                    .pnlPercent(pnlPercent)
+                    .build());
         }
         return result;
     }
