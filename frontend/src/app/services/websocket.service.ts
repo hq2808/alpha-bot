@@ -46,8 +46,13 @@ export class WebsocketService implements OnDestroy {
     public getMarketTicks(): Observable<VndPriceData[]> {
         return this.rxStomp.watch('/topic/market-ticks').pipe(
             map(message => {
-                // Parse the JSON array
-                const dataArr = JSON.parse(message.body);
+                // Parse the JSON array or object
+                let dataArr = JSON.parse(message.body);
+
+                // Ensure dataArr is always an array
+                if (!Array.isArray(dataArr)) {
+                    dataArr = [dataArr];
+                }
 
                 // Map backend StockQuote structure to frontend VndPriceData structure
                 return dataArr.map((d: any) => ({

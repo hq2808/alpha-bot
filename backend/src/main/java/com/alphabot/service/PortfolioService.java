@@ -48,8 +48,7 @@ public class PortfolioService {
 
         // Price is usually in thousands (e.g. 95.5 = 95,500 VND), but we match exactly
         // what is in DB
-        BigDecimal currentPrice = BigDecimal.valueOf(latestQuoteOpt.get().getMatchPrice())
-                .multiply(new BigDecimal("1000"));
+        BigDecimal currentPrice = BigDecimal.valueOf(latestQuoteOpt.get().getMatchPrice());
 
         if ("BUY".equalsIgnoreCase(order.getAction())) {
             executeBuy(portfolio, ticker, currentPrice, order.getReason());
@@ -167,9 +166,16 @@ public class PortfolioService {
 
         for (PortfolioPosition pos : positions) {
             Optional<StockQuote> quoteOpt = stockQuoteService.getLatestQuote(pos.getTicker());
-            BigDecimal currentPrice = quoteOpt.isPresent() && quoteOpt.get().getMatchPrice() != null
-                    ? BigDecimal.valueOf(quoteOpt.get().getMatchPrice()).multiply(new BigDecimal("1000"))
-                    : pos.getAveragePrice();
+            BigDecimal currentPrice = pos.getAveragePrice();
+
+            if (quoteOpt.isPresent()) {
+                StockQuote q = quoteOpt.get();
+                Double priceToUse = (q.getMatchPrice() != null && q.getMatchPrice() > 0) ? q.getMatchPrice()
+                        : q.getBasicPrice();
+                if (priceToUse != null && priceToUse > 0) {
+                    currentPrice = BigDecimal.valueOf(priceToUse);
+                }
+            }
 
             stockValue = stockValue.add(currentPrice.multiply(new BigDecimal(pos.getQuantity())));
         }
@@ -189,9 +195,16 @@ public class PortfolioService {
             map.put("averagePrice", pos.getAveragePrice());
 
             Optional<StockQuote> quoteOpt = stockQuoteService.getLatestQuote(pos.getTicker());
-            BigDecimal currentPrice = quoteOpt.isPresent() && quoteOpt.get().getMatchPrice() != null
-                    ? BigDecimal.valueOf(quoteOpt.get().getMatchPrice()).multiply(new BigDecimal("1000"))
-                    : pos.getAveragePrice();
+            BigDecimal currentPrice = pos.getAveragePrice();
+
+            if (quoteOpt.isPresent()) {
+                StockQuote q = quoteOpt.get();
+                Double priceToUse = (q.getMatchPrice() != null && q.getMatchPrice() > 0) ? q.getMatchPrice()
+                        : q.getBasicPrice();
+                if (priceToUse != null && priceToUse > 0) {
+                    currentPrice = BigDecimal.valueOf(priceToUse);
+                }
+            }
 
             map.put("currentPrice", currentPrice);
 
@@ -223,9 +236,16 @@ public class PortfolioService {
 
         for (PortfolioPosition pos : positions) {
             Optional<StockQuote> quoteOpt = stockQuoteService.getLatestQuote(pos.getTicker());
-            BigDecimal currentPrice = quoteOpt.isPresent() && quoteOpt.get().getMatchPrice() != null
-                    ? BigDecimal.valueOf(quoteOpt.get().getMatchPrice()).multiply(new BigDecimal("1000"))
-                    : pos.getAveragePrice();
+            BigDecimal currentPrice = pos.getAveragePrice();
+
+            if (quoteOpt.isPresent()) {
+                StockQuote q = quoteOpt.get();
+                Double priceToUse = (q.getMatchPrice() != null && q.getMatchPrice() > 0) ? q.getMatchPrice()
+                        : q.getBasicPrice();
+                if (priceToUse != null && priceToUse > 0) {
+                    currentPrice = BigDecimal.valueOf(priceToUse);
+                }
+            }
 
             stockValue = stockValue.add(currentPrice.multiply(new BigDecimal(pos.getQuantity())));
         }

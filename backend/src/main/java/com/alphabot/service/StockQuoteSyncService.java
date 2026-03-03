@@ -20,9 +20,7 @@ import org.springframework.context.event.EventListener;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +35,8 @@ public class StockQuoteSyncService {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     // Using a predefined list of popular VN30 and large cap stocks for the board
-    private final String TRACK_LIST = "SSI,VND,HCM,VCI,HPG,HSG,NKG,VHM,VIC,VRE,NVL,DIG,DXG,TCB,MBB,VPB,STB,CTG,VCB,BID,FPT,MWG,PNJ,GAS,PLX,POW,VNM,MSN,SAB,VJC,HVN,GVR,DGC,DPM,DCM,KBC,IDC,VGC";
+    private final String TRACK_LIST_STRING = "SSI,VND,HCM,VCI,HPG,HSG,NKG,VHM,VIC,VRE,NVL,DIG,DXG,TCB,MBB,VPB,STB,CTG,VCB,BID,FPT,MWG,PNJ,GAS,PLX,POW,VNM,MSN,SAB,VJC,HVN,GVR,DGC,DPM,DCM,KBC,IDC,VGC,ACV,VEA,QNS,BSR,OIL,VGI,CTR,VTP,FOX,MCH,FRT,REE,GMD,HAH,VSC,DGW,PET,FTS,CTS,AGR,BVS,VIX,SHS,TVS,ORS,LPB,OCB,TPB,HDB,EIB,MSB,VIB,KDH,NLG,HDG,CEO,SCR,LDG,CII,PC1,GEG,ASM,IDI,ANV,VHC,FMC,ACL,CMX,MPC,DBC,HAG,HNG,LTG,PAN,TAR,VSF";
+    private final Set<String> TRACK_LIST = new HashSet<>(Arrays.asList(TRACK_LIST_STRING.split(",")));
 
     // Redis key
     private static final String REDIS_KEY_QUOTES = "Market:Quotes";
@@ -64,11 +63,13 @@ public class StockQuoteSyncService {
             List<StockQuote> quotesToSave = new ArrayList<>();
             Instant now = Instant.now();
 
-            // CafeF has different centers: 1 = HOSE, 2 = HNX. We will fetch both to cover
+            // CafeF has different centers: 1 = HOSE, 2 = HNX, 9 = UPCOM. We will fetch all
+            // to cover
             // our track list.
             String[] urls = {
-                    "https://banggia.cafef.vn/stockhandler.ashx?center=1",
-                    "https://banggia.cafef.vn/stockhandler.ashx?center=2"
+                    "https://banggia.cafef.vn/stockhandler.ashx?center=1", // HOSE
+                    "https://banggia.cafef.vn/stockhandler.ashx?center=2", // HNX
+                    "https://banggia.cafef.vn/stockhandler.ashx?center=9" // UPCOM
             };
 
             RestTemplate restTemplate = new RestTemplate();
@@ -94,28 +95,28 @@ public class StockQuoteSyncService {
                                 if (TRACK_LIST.contains(ticker)) {
                                     StockQuote quote = StockQuote.builder()
                                             .ticker(ticker)
-                                            .basicPrice(d.path("b").asDouble(0))
-                                            .ceilingPrice(d.path("c").asDouble(0))
-                                            .floorPrice(d.path("d").asDouble(0))
-                                            .matchPrice(d.path("l").asDouble(0))
+                                            .basicPrice(d.path("b").asDouble(0) * 1000)
+                                            .ceilingPrice(d.path("c").asDouble(0) * 1000)
+                                            .floorPrice(d.path("d").asDouble(0) * 1000)
+                                            .matchPrice(d.path("l").asDouble(0) * 1000)
                                             .matchQtty(d.path("m").asDouble(0))
                                             // Bid 1
-                                            .buyPrice1(d.path("i").asDouble(0))
+                                            .buyPrice1(d.path("i").asDouble(0) * 1000)
                                             .buyQtty1(d.path("j").asDouble(0))
                                             // Bid 2
-                                            .buyPrice2(d.path("g").asDouble(0))
+                                            .buyPrice2(d.path("g").asDouble(0) * 1000)
                                             .buyQtty2(d.path("h").asDouble(0))
                                             // Bid 3
-                                            .buyPrice3(d.path("e").asDouble(0))
+                                            .buyPrice3(d.path("e").asDouble(0) * 1000)
                                             .buyQtty3(d.path("f").asDouble(0))
                                             // Ask 1
-                                            .sellPrice1(d.path("o").asDouble(0))
+                                            .sellPrice1(d.path("o").asDouble(0) * 1000)
                                             .sellQtty1(d.path("p").asDouble(0))
                                             // Ask 2
-                                            .sellPrice2(d.path("q").asDouble(0))
+                                            .sellPrice2(d.path("q").asDouble(0) * 1000)
                                             .sellQtty2(d.path("r").asDouble(0))
                                             // Ask 3
-                                            .sellPrice3(d.path("s").asDouble(0))
+                                            .sellPrice3(d.path("s").asDouble(0) * 1000)
                                             .sellQtty3(d.path("t").asDouble(0))
                                             // Total match
                                             .totalMatchQtty(d.path("n").asDouble(0))

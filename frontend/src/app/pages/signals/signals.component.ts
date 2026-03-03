@@ -177,6 +177,7 @@ import { createChart, IChartApi } from 'lightweight-charts';
     .rec-table-wrap { overflow-x: auto; border: 1px solid #30363d; border-radius: 8px; }
     .rec-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .rec-table thead th { background: #161b22; color: #8b949e; text-align: left; padding: 9px 12px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+    .rec-table thead th:nth-child(4) { text-align: center; }
     .rec-row { border-bottom: 1px solid #21262d; cursor: pointer; transition: background 0.12s; }
     .rec-row:hover { background: #161b22; }
     .rec-row.buy-row  { border-left: 3px solid #3fb950; }
@@ -264,6 +265,8 @@ export class SignalsComponent implements OnInit, OnDestroy {
   tickerSignals: TickerSignal[] = [];
   newsPage: NewsPage | null = null;
   searchQuery = '';
+  searchTicker = '';
+  searchHours?: number;
   currentPage = 0;
   readonly pageSize = 21;
   loading = false;
@@ -325,7 +328,13 @@ export class SignalsComponent implements OnInit, OnDestroy {
 
   load(): void {
     this.loading = true;
-    this.signal.searchNews(this.searchQuery, this.currentPage, this.pageSize, this.threshold)
+
+    // Convert numeric threshold to classification filter
+    let filterType = 'all';
+    if (this.threshold >= 0.5) filterType = 'bull';
+    else if (this.threshold <= -0.5) filterType = 'bear';
+
+    this.signal.searchNews(this.searchQuery, this.currentPage, this.pageSize, filterType, this.searchTicker, this.searchHours)
       .subscribe({
         next: page => { this.newsPage = page; this.loading = false; },
         error: () => { this.loading = false; }
@@ -333,12 +342,16 @@ export class SignalsComponent implements OnInit, OnDestroy {
   }
 
   onSearchChange(): void {
+    this.searchTicker = '';
+    this.searchHours = undefined;
     this.currentPage = 0;
     this.load();
   }
 
   clearSearch(): void {
     this.searchQuery = '';
+    this.searchTicker = '';
+    this.searchHours = undefined;
     this.currentPage = 0;
     this.load();
   }
@@ -361,7 +374,9 @@ export class SignalsComponent implements OnInit, OnDestroy {
   }
 
   filterByTicker(ticker: string): void {
-    this.searchQuery = ticker;
+    this.searchTicker = ticker;
+    this.searchHours = 24;
+    this.searchQuery = '';
     this.currentPage = 0;
     this.load();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -476,6 +491,8 @@ export class SignalsComponent implements OnInit, OnDestroy {
 
     this.signal.getHistoricalData(ticker).subscribe({
       next: (data) => {
+        // Try to find if we have any signal data to help "current" state
+        // (SignalsComponent doesn't have live ticks as often as PriceBoard, but we can try)
         this.chartData = data;
         this.isLoadingChart = false;
         // Wait for DOM to update and ViewChild to be available
@@ -541,7 +558,7 @@ export class SignalsComponent implements OnInit, OnDestroy {
       borderVisible: false,
       wickUpColor: '#3fb950',
       wickDownColor: '#f85149',
-      priceFormat: { type: 'custom', minMove: 0.01, formatter: (p: number) => (p / 1000).toFixed(2).replace('.', ',') }
+      priceFormat: { type: 'custom', minMove: 1, formatter: (p: number) => p.toLocaleString('en-US') }
     });
 
     if (this.chartData && this.chartData.length > 0) {

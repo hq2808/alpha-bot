@@ -60,7 +60,7 @@ import { debounceTime } from 'rxjs/operators';
         </div>
       }
 
-      <!-- Search + Sort toolbar -->
+      <!-- Search toolbar -->
       <div class="toolbar">
         <div class="search-wrap">
           <input type="text" class="search-input" [(ngModel)]="searchQuery"
@@ -69,12 +69,6 @@ import { debounceTime } from 'rxjs/operators';
           @if (searchQuery) {
             <button class="clear-btn" (click)="clearSearch()">✕</button>
           }
-        </div>
-        <div class="sort-wrap">
-          <select class="sort-select" [(ngModel)]="sortOrder" (ngModelChange)="reload()">
-            <option value="desc">Mới nhất trước</option>
-            <option value="asc">Cũ nhất trước</option>
-          </select>
         </div>
       </div>
 
@@ -251,7 +245,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   page?: NewsPage;
   loading = false;
   searchQuery = '';
-  sortOrder = 'desc';
   currentPage = 0;
   activeFilter: 'all' | 'bull' | 'bear' = 'all';
   readonly PAGE_SIZE = 20;
@@ -279,30 +272,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadNews(): void {
     this.loading = true;
-    const threshold = this.activeFilter === 'bull' ? SENTIMENT_THRESHOLDS.BULLISH :
-      this.activeFilter === 'bear' ? -SENTIMENT_THRESHOLDS.BEARISH : -1; // API logic notes: if bearish, passing negative threshold implies <= -threshold in my backend logic usually, but wait. Let me do client-side filtering below if API doesn't support bear filtering well. It's safer to just fetch & filter if API search doesn't explicitly handle "negative threshold = bear". Wait, `searchNews` in signal service takes `threshold: number = -1`. The backend query `WHERE sentiment_score >= :threshold`. So it only filters BULLISH.
-    // Since backend searchNews ONLY does `sentiment_score >= threshold` (which is for Bullish), for Bearish we must do it client-side or modify backend.
-    // Dashboard is a streaming feed anyway, so we can let the backend fetch normal search and do the filtering client-side for the current fetched page, OR just modify the backend.
-    // Actually, `searchNews` in Spring Data uses `>= :threshold` if threshold != -1. If we want BEARISH, backend `searchNews` needs `sentiment_score <= threshold` which isn't there.
-    // To not break backend, let's just do client-side filtering on the returned list for dashboard.
 
-    this.signal.searchNews(this.searchQuery, this.currentPage, this.PAGE_SIZE).subscribe({
+    // Call API with filterType directly
+    this.signal.searchNews(this.searchQuery, this.currentPage, this.PAGE_SIZE, this.activeFilter).subscribe({
       next: (p: NewsPage) => {
         this.page = p;
-        // Sort client-side by publishedAt
-        let results = [...p.content].sort((a, b) => {
-          const da = new Date(a.publishedAt || a.crawledAt).getTime();
-          const db = new Date(b.publishedAt || b.crawledAt).getTime();
-          return this.sortOrder === 'desc' ? db - da : da - db;
-        });
+        // The API already sorts correctly via SQL ORDER BY.
+        let results = p.content;
 
-        this.computeStats(results); // Compute stats BEFORE filtering so counts stay correct
-
-        if (this.activeFilter === 'bull') {
-          results = results.filter(a => a.sentimentScore >= SENTIMENT_THRESHOLDS.BULLISH);
-        } else if (this.activeFilter === 'bear') {
-          results = results.filter(a => a.sentimentScore <= SENTIMENT_THRESHOLDS.BEARISH);
-        }
+        this.computeStats(results);
         this.articles = results;
         this.loading = false;
       },
@@ -311,8 +289,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   computeStats(all: NewsArticle[]): void {
-    this.bullishCount = all.filter(a => a.sentimentScore >= SENTIMENT_THRESHOLDS.BULLISH).length;
-    this.bearishCount = all.filter(a => a.sentimentScore <= SENTIMENT_THRESHOLDS.BEARISH).length;
+    this.bullishCount = all.filter(a => a.sentimentScore >= 0.2).length;
+    this.bearishCount = all.filter(a => a.sentimentScore <= -0.2).length;
     this.avgSentiment = all.length
       ? all.reduce((s, a) => s + (a.sentimentScore ?? 0), 0) / all.length
       : 0;

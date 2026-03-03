@@ -113,15 +113,15 @@ public class MarketDataService {
                         .ticker(ticker)
                         .date(date)
                         .open(openList != null && i < openList.size() && openList.get(i) != null
-                                ? openList.get(i).doubleValue()
+                                ? openList.get(i).doubleValue() * 1000
                                 : null)
                         .high(highList != null && i < highList.size() && highList.get(i) != null
-                                ? highList.get(i).doubleValue()
+                                ? highList.get(i).doubleValue() * 1000
                                 : null)
                         .low(lowList != null && i < lowList.size() && lowList.get(i) != null
-                                ? lowList.get(i).doubleValue()
+                                ? lowList.get(i).doubleValue() * 1000
                                 : null)
-                        .close(closeList.get(i).doubleValue())
+                        .close(closeList.get(i).doubleValue() * 1000)
                         .volume(volumeList != null && i < volumeList.size() && volumeList.get(i) != null
                                 ? volumeList.get(i).longValue()
                                 : 0L)

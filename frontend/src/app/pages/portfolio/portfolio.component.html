@@ -48,18 +48,20 @@
             <tr>
               <th>Mã</th>
               <th class="text-right">Khối lượng</th>
-              <th class="text-right">Giá vốn</th>
+              <th class="text-right">Giá mua</th>
+              <th class="text-right">Giá HT</th>
               <th class="text-right">Lãi/Lỗ tạm tính</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngIf="positions.length === 0">
-              <td colspan="4" class="text-center empty-state">Chưa nắm giữ cổ phiếu nào</td>
+              <td colspan="5" class="text-center empty-state">Chưa nắm giữ cổ phiếu nào</td>
             </tr>
             <tr *ngFor="let pos of positions">
               <td class="font-bold text-blue">{{ pos.ticker }}</td>
               <td class="text-right">{{ pos.quantity | number }}</td>
               <td class="text-right">{{ pos.averagePrice | number:'1.0-0' }} ₫</td>
+              <td class="text-right">{{ pos.currentPrice | number:'1.0-0' }} ₫</td>
               <td class="text-right">
                 <span [class.text-green]="pos.pnlValue >= 0" [class.text-red]="pos.pnlValue < 0" class="font-bold">
                   {{ pos.pnlValue > 0 ? '+' : '' }}{{ pos.pnlValue | number:'1.0-0' }} ₫

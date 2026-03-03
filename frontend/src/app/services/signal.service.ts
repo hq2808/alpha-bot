@@ -111,8 +111,10 @@ export class SignalService {
     }
 
     /** Paginated keyword search — used by News Insight page. */
-    searchNews(q: string = '', page: number = 0, size: number = 20, threshold: number = -1): Observable<NewsPage> {
-        const params = `q=${encodeURIComponent(q)}&page=${page}&size=${size}&threshold=${threshold}`;
+    searchNews(q: string = '', page: number = 0, size: number = 20, filterType: string = 'all', exactTicker: string = '', hours?: number): Observable<NewsPage> {
+        let params = `q=${encodeURIComponent(q)}&page=${page}&size=${size}&filterType=${filterType}`;
+        if (exactTicker) params += `&ticker=${encodeURIComponent(exactTicker)}`;
+        if (hours) params += `&hours=${hours}`;
         return this.http.get<NewsPage>(`/api/news/search?${params}`);
     }
 
@@ -197,7 +199,8 @@ export class SignalService {
      * Shared price formatter for lightweight-charts.
      * Converts raw number (e.g. 92900) to "92,90" VN-style display.
      */
-    formatPrice(p: number): string {
-        return (p / 1000).toFixed(2).replace('.', ',');
+    formatPrice(price: number): string {
+        if (!price) return '0';
+        return price.toLocaleString('en-US');
     }
 }

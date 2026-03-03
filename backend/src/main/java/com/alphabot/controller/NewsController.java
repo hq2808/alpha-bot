@@ -89,19 +89,26 @@ public class NewsController {
      * q = keyword to search (title / source / tickers / tags), default ""
      * page = 0-based page index, default 0
      * size = items per page, default 20
-     * threshold= minimum sentiment score, default -1.0 (all articles)
+     * filterType = all | bull | bear (default all)
      *
      * Response: Spring Page object with content[] + totalPages + totalElements
      */
     @GetMapping("/news/search")
     public ResponseEntity<Page<NewsArticle>> searchNews(
             @RequestParam(defaultValue = "") String q,
+            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) Integer hours,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "-1.0") double threshold) {
+            @RequestParam(defaultValue = "all") String filterType) {
+
+        java.time.Instant since = hours != null
+                ? java.time.Instant.now().minus(hours, java.time.temporal.ChronoUnit.HOURS)
+                : java.time.Instant.EPOCH;
+        String exactTicker = ticker != null ? ticker : "";
 
         Page<NewsArticle> result = newsArticleRepository.searchBullishArticles(
-                threshold, q, PageRequest.of(page, size));
+                filterType, q, exactTicker, since, PageRequest.of(page, size));
         return ResponseEntity.ok(result);
     }
 

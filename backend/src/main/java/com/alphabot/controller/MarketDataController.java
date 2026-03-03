@@ -1,13 +1,12 @@
 package com.alphabot.controller;
 
 import com.alphabot.entity.MarketData;
-import com.alphabot.entity.StockQuote;
 import com.alphabot.repository.MarketDataRepository;
-import com.alphabot.repository.StockQuoteRepository;
 import com.alphabot.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,7 +20,7 @@ public class MarketDataController {
 
     private final MarketDataRepository marketDataRepository;
     private final MarketDataService marketDataService;
-    private final StockQuoteRepository stockQuoteRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @GetMapping("/{ticker}")
     public ResponseEntity<List<MarketData>> getHistoricalData(@PathVariable String ticker) {
@@ -29,15 +28,16 @@ public class MarketDataController {
     }
 
     /**
-     * Endpoint to fetch cached Level-2 real-time data from PostgreSQL
+     * Endpoint to fetch cached Level-2 real-time data from Redis
      */
     @GetMapping("/vndirect/quotes")
     public ResponseEntity<Map<String, Object>> getVndirectQuotes() {
         try {
-            List<StockQuote> quotes = stockQuoteRepository.findAll();
-            return ResponseEntity.ok(Map.of("data", quotes));
+            // Get all quotes from Redis Hash
+            Map<Object, Object> entries = redisTemplate.opsForHash().entries("Market:Quotes");
+            return ResponseEntity.ok(Map.of("data", entries.values()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to fetch cached data"));
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to fetch cached data from Redis"));
         }
     }
 

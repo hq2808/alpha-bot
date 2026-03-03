@@ -76,9 +76,9 @@ export interface VndPriceData {
             @for (stock of displayData; track stock.code) {
               <tr class="stock-row" (click)="openDetail(stock.code)">
                 <td class="col-ticker" [class]="getPriceColor(stock.matchPrice, stock)">{{ stock.code }}</td>
-                <td class="col-ref c-ref">{{ stock.basicPrice | number:'1.2-2' }}</td>
-                <td class="col-ceil c-ceil">{{ stock.ceilingPrice | number:'1.2-2' }}</td>
-                <td class="col-floor c-floor">{{ stock.floorPrice | number:'1.2-2' }}</td>
+                <td class="col-ref c-ref">{{ formatPrice(stock.basicPrice) }}</td>
+                <td class="col-ceil c-ceil">{{ formatPrice(stock.ceilingPrice) }}</td>
+                <td class="col-floor c-floor">{{ formatPrice(stock.floorPrice) }}</td>
                 
                 <!-- Bên Mua -->
                 <td class="col-price" [class]="getPriceColor(stock.buyPrice3, stock)">{{ formatPrice(stock.buyPrice3) }}</td>
@@ -332,14 +332,13 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
   getPriceChange(stock: VndPriceData): string {
     if (!stock.matchPrice || stock.matchPrice === 0) return '';
     const diff = stock.matchPrice - stock.basicPrice;
-    if (diff === 0) return '0.00';
     const sign = diff > 0 ? '+' : '';
-    return `${sign}${diff.toFixed(2)}`;
+    return `${sign}${diff.toLocaleString('en-US')}`;
   }
 
   formatPrice(p: number): string {
     if (!p || p === 0) return '-';
-    return p.toFixed(2);
+    return p.toLocaleString('en-US');
   }
 
   formatVol(v: number): string {
@@ -357,7 +356,38 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
     this.chartSub?.unsubscribe();
     this.chartSub = this.signalService.getHistoricalDataBatch([ticker]).subscribe({
       next: (batch) => {
-        this.selectedTickerData = batch[ticker] || [];
+        let historical = [...(batch[ticker] || [])];
+
+        // Find current tick from displayData to inject latest point
+        const currentTick = this.displayData.find(s => s.code === ticker);
+
+        if (currentTick && currentTick.matchPrice > 0) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          // Check if we already have a point for today, if so we update it, else append
+          const lastPoint = historical.length > 0 ? historical[historical.length - 1] : null;
+
+          if (lastPoint && lastPoint.date.startsWith(todayStr)) {
+            // Update today's candle
+            lastPoint.close = currentTick.matchPrice;
+            lastPoint.high = Math.max(lastPoint.high || 0, currentTick.matchPrice);
+            lastPoint.low = Math.min(lastPoint.low || 999999, currentTick.matchPrice);
+            console.log('Updating today point to:', lastPoint.close);
+          } else {
+            // Add new point for today
+            historical.push({
+              ticker: ticker,
+              date: new Date().toISOString(),
+              open: currentTick.basicPrice,
+              high: Math.max(currentTick.matchPrice, currentTick.basicPrice),
+              low: Math.min(currentTick.matchPrice, currentTick.basicPrice),
+              close: currentTick.matchPrice,
+              volume: currentTick.totalMatchQtty * 10
+            } as any);
+            console.log('Added new today point:', currentTick.matchPrice);
+          }
+        }
+
+        this.selectedTickerData = historical;
         this.loadingChart = false;
       },
       error: (err) => {
