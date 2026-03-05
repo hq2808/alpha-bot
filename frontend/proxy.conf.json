@@ -10,10 +10,12 @@
     },
     "/oauth2": {
         "target": "http://localhost:8080",
-        "secure": false
+        "secure": false,
+        "xfwd": true
     },
     "/login": {
         "target": "http://localhost:8080",
-        "secure": false
+        "secure": false,
+        "xfwd": true
     }
 }
