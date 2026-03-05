@@ -13,7 +13,7 @@ import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 @Component({
   selector: 'app-portfolio',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule],
   providers: [PortfolioService],
   templateUrl: './portfolio.component.html',
   styleUrls: ['./portfolio.component.css']

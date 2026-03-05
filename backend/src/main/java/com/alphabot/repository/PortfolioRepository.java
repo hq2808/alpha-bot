@@ -17,6 +17,6 @@ public interface PortfolioRepository extends JpaRepository<Portfolio, Long> {
     Optional<Portfolio> findByUserIdAndType(Long userId, PortfolioType type);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Portfolio p WHERE p.userId = :userId AND p.type = :type")
+    @Query("SELECT p FROM Portfolio p WHERE p.user.id = :userId AND p.type = :type")
     Optional<Portfolio> findWithLockByUserIdAndType(Long userId, PortfolioType type);
 }

@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @Data
 @Builder
 @Schema(description = "Summary of a portfolio's financial status")
-public class PortfolioSummaryResponse {
+public class PortfolioSummaryResponse implements java.io.Serializable {
     @Schema(description = "Name of the portfolio", example = "AI Auto Trader")
     private String name;
 

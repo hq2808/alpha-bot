@@ -44,9 +44,13 @@ class ManualTradingServiceTest {
 
     @BeforeEach
     void setUp() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("test@example.com");
+
         manualPortfolio = new Portfolio();
         manualPortfolio.setId(1L);
-        manualPortfolio.setUserId(1L);
+        manualPortfolio.setUser(user);
         manualPortfolio.setType(PortfolioType.MANUAL);
         manualPortfolio.setCashBalance(new BigDecimal("100000000"));
         manualPortfolio.setInitialCapital(new BigDecimal("100000000"));

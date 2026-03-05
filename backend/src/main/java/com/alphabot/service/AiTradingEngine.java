@@ -45,9 +45,16 @@ public class AiTradingEngine {
             log.info("AI Trading: Market is closed. Skipping auto-trade job.");
             return;
         }
-        log.info("Starting AI Auto Trading Job...");
+        log.info("Starting AI Auto Trading Job for all users...");
         List<AiRecommendation> recommendations = analyzeMarket();
-        executeTradeDecisions(recommendations, false);
+
+        // Fetch all AUTO portfolios to execute trades for each user
+        List<com.alphabot.entity.Portfolio> allAutoPortfolios = portfolioService
+                .getAllPortfoliosByType(com.alphabot.entity.PortfolioType.AUTO);
+
+        for (com.alphabot.entity.Portfolio portfolio : allAutoPortfolios) {
+            executeTradeDecisions(portfolio, recommendations, false);
+        }
     }
 
     /**
@@ -56,7 +63,9 @@ public class AiTradingEngine {
     public List<TradeOrderRequest> executeDryRun() {
         log.info("Starting Dry-Run AI Trading Job...");
         List<AiRecommendation> recommendations = analyzeMarket();
-        return executeTradeDecisions(recommendations, true);
+        // Dry run doesn't need a real portfolio for execution logs, but we pass null or
+        // a dummy if needed
+        return executeTradeDecisions(null, recommendations, true);
     }
 
     private List<AiRecommendation> analyzeMarket() {
@@ -100,7 +109,8 @@ public class AiTradingEngine {
         }
     }
 
-    private List<TradeOrderRequest> executeTradeDecisions(List<AiRecommendation> recommendations, boolean isDryRun) {
+    private List<TradeOrderRequest> executeTradeDecisions(com.alphabot.entity.Portfolio portfolio,
+            List<AiRecommendation> recommendations, boolean isDryRun) {
         List<TradeOrderRequest> approvedOrders = new ArrayList<>();
 
         for (AiRecommendation rec : recommendations) {
@@ -154,9 +164,9 @@ public class AiTradingEngine {
             // Execute via Portfolio Service if NOT dry run
             // (Note: Position sizing & Max allocation rules are handled gracefully inside
             // PortfolioService.executeTrade)
-            if (!isDryRun) {
+            if (!isDryRun && portfolio != null) {
                 try {
-                    portfolioService.executeTrade(order);
+                    portfolioService.executeTrade(portfolio, order);
                     // Set Redis Lock for the rest of the day (24h) protecting from overtrading
                     redisTemplate.opsForValue().set(lockKey, "LOCKED", 24, TimeUnit.HOURS);
                 } catch (Exception e) {

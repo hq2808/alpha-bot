@@ -28,17 +28,30 @@ public class PortfolioService {
     private final PortfolioSnapshotRepository snapshotRepository;
     private final StockQuoteSyncService stockQuoteService;
 
-    private static final String DEFAULT_PORTFOLIO_NAME = "AI Auto Trader";
     private static final BigDecimal MAX_POSITION_SIZE_PERCENT = new BigDecimal("0.15"); // Max 15% equity per stock
 
-    public Portfolio getDefaultPortfolio() {
-        return portfolioRepository.findByName(DEFAULT_PORTFOLIO_NAME)
-                .orElseThrow(() -> new RuntimeException("Default portfolio not found! Please run migrations."));
+    public List<Portfolio> getAllPortfoliosByType(PortfolioType type) {
+        return portfolioRepository.findAll().stream()
+                .filter(p -> p.getType() == type)
+                .toList();
     }
 
     @Transactional
-    public void executeTrade(TradeOrderRequest order) {
-        Portfolio portfolio = getDefaultPortfolio();
+    public Portfolio getOrCreatePortfolio(User user, PortfolioType type) {
+        return portfolioRepository.findByUserIdAndType(user.getId(), type)
+                .orElseGet(() -> {
+                    Portfolio portfolio = new Portfolio();
+                    portfolio.setUser(user);
+                    portfolio.setType(type);
+                    portfolio.setName(type == PortfolioType.AUTO ? "AI Auto Trader" : "Manual Portfolio");
+                    portfolio.setInitialCapital(new BigDecimal("100000000"));
+                    portfolio.setCashBalance(new BigDecimal("100000000"));
+                    return portfolioRepository.save(portfolio);
+                });
+    }
+
+    @Transactional
+    public void executeTrade(Portfolio portfolio, TradeOrderRequest order) {
         String ticker = order.getTicker().toUpperCase();
 
         Optional<StockQuote> latestQuoteOpt = stockQuoteService.getLatestQuote(ticker);
@@ -245,10 +258,16 @@ public class PortfolioService {
 
     @Scheduled(cron = "0 15 15 * * MON-FRI", zone = "Asia/Ho_Chi_Minh") // 15:15 Every weekday (After market close)
     @Transactional
-    public void takeDailySnapshot() {
-        log.info("Taking daily portfolio snapshot...");
-        Portfolio portfolio = getDefaultPortfolio();
+    public void takeDailySnapshots() {
+        log.info("Taking daily portfolio snapshots for all users...");
+        List<Portfolio> allPortfolios = portfolioRepository.findAll();
+        for (Portfolio portfolio : allPortfolios) {
+            takeSnapshot(portfolio);
+        }
+    }
 
+    @Transactional
+    public void takeSnapshot(Portfolio portfolio) {
         List<PortfolioPosition> positions = positionRepository.findByPortfolioId(portfolio.getId());
         BigDecimal stockValue = BigDecimal.ZERO;
 
@@ -281,6 +300,5 @@ public class PortfolioService {
         snapshot.setTotalEquity(totalEquity);
 
         snapshotRepository.save(snapshot);
-        log.info("Saved Portfolio Snapshot: Equity {}, Cash {}", totalEquity, portfolio.getCashBalance());
     }
 }

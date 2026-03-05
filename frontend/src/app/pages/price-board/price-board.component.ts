@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Subscription, interval } from 'rxjs';
 import { SignalService, MarketData } from '../../services/signal.service';
 import { WebsocketService } from '../../services/websocket.service';
@@ -32,7 +32,7 @@ export interface VndPriceData {
 @Component({
   selector: 'app-price-board',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, MiniChartComponent],
+  imports: [CommonModule, MiniChartComponent],
   template: `
     <div class="price-board-page">
       <div class="page-header">
@@ -343,9 +343,8 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
 
   formatVol(v: number): string {
     if (!v || v === 0) return '-';
-    // Format volume to K (e.g. 15400 -> 154.0) usually VN boards divide by 10 for prices, 10 for volumes
-    // We just use standard locale formatting for real volume
-    return (v * 10).toLocaleString('en-US'); // VNDirect typically sends Vol/10
+    // CafeF now sends real volume directly, no need to multiply by 10
+    return v.toLocaleString('en-US');
   }
 
   openDetail(ticker: string) {
@@ -381,7 +380,7 @@ export class PriceBoardComponent implements OnInit, OnDestroy {
               high: Math.max(currentTick.matchPrice, currentTick.basicPrice),
               low: Math.min(currentTick.matchPrice, currentTick.basicPrice),
               close: currentTick.matchPrice,
-              volume: currentTick.totalMatchQtty * 10
+              volume: currentTick.totalMatchQtty
             } as any);
             console.log('Added new today point:', currentTick.matchPrice);
           }

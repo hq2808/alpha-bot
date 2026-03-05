@@ -34,8 +34,6 @@ public class ManualTradingService {
     @Value("${manual.initial-capital:100000000}")
     private BigDecimal initialCapital;
 
-    private static final Long DEFAULT_USER_ID = 1L;
-
     @Transactional
     @CacheEvict(value = "portfolioSummary", key = "#userId")
     public void executeTrade(Long userId, TradeOrderRequest order) {
@@ -195,17 +193,4 @@ public class ManualTradingService {
         eventPublisher.publishEvent(new TradeExecutedEvent(this, tx));
     }
 
-    @Transactional
-    public void executeTrade(TradeOrderRequest order) {
-        executeTrade(DEFAULT_USER_ID, order);
-    }
-
-    @Transactional
-    public void resetPortfolio() {
-        resetPortfolio(DEFAULT_USER_ID);
-    }
-
-    public PortfolioSummaryResponse getSummary() {
-        return getSummary(DEFAULT_USER_ID);
-    }
 }

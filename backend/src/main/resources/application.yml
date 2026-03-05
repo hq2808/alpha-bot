@@ -8,6 +8,17 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:alphabot123}
     driver-class-name: org.postgresql.Driver
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-client-secret}
+            scope:
+              - email
+              - profile
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -34,6 +45,9 @@ spring:
 
 # App-specific settings
 alpha-bot:
+  jwt:
+    secret: ${JWT_SECRET:8RjQfX2xL9sM6bA4dF1gH3jK5nP7qT8wY1zC4vB9mN0xZ2lV7cX5bN6mQ8rT2yP9}
+    expiration-ms: 86400000
   crawler:
     interval-ms: 60000  # 1 minute — faster pickup for time-sensitive news
     # Vietnamese stock news sources (free, no API key needed)
@@ -51,6 +65,7 @@ alpha-bot:
 
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 springdoc:
   swagger-ui:
