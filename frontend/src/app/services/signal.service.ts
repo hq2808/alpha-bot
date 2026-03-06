@@ -3,6 +3,8 @@ import { RxStomp } from '@stomp/rx-stomp';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, map } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { inject } from '@angular/core';
+import { AuthService } from './auth.service';
 
 // ── Domain Models ─────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ export class SignalService {
     private historicalDataCache: { [ticker: string]: MarketData[] } = {};
     private cacheTimestamp: number = 0;
     private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    private authService = inject(AuthService);
 
     constructor(private http: HttpClient) {
         this.stomp.configure({
@@ -162,14 +165,23 @@ export class SignalService {
     // ── Watchlist ──────────────────────────────────────────────────────────────
 
     getWatchlist(): Observable<WatchlistItem[]> {
+        if (!this.authService.isLoggedIn()) {
+            return of([]);
+        }
         return this.http.get<WatchlistItem[]>('/api/watchlist');
     }
 
     addToWatchlist(ticker: string): Observable<WatchlistItem> {
+        if (!this.authService.isLoggedIn()) {
+            return of({ id: 0, ticker, createdAt: new Date().toISOString() } as WatchlistItem);
+        }
         return this.http.post<WatchlistItem>(`/api/watchlist/${ticker}`, {});
     }
 
     removeFromWatchlist(ticker: string): Observable<void> {
+        if (!this.authService.isLoggedIn()) {
+            return of(undefined);
+        }
         return this.http.delete<void>(`/api/watchlist/${ticker}`);
     }
 

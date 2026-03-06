@@ -239,18 +239,22 @@ export class AppComponent implements OnInit {
   }
 
   checkSession() {
-    // Check if we have a session/user info on load
-    this.http.get('http://localhost:8080/api/user/me', { withCredentials: true }).subscribe({
+    // Check if we have a session/token on load
+    if (!this.authService.getToken()) {
+      this.authService.isLoggedIn.set(false);
+      return;
+    }
+
+    this.http.get('/api/user/me').subscribe({
       next: (user: any) => {
         if (user) {
           this.authService.isLoggedIn.set(true);
         }
       },
       error: () => {
-        // Only set false if they don't have a token, maybe the token is valid but they didn't hit the endpoint yet
-        if (!this.authService.getToken()) {
-          this.authService.isLoggedIn.set(false);
-        }
+        // Token is invalid/expired
+        this.authService.logout();
+        this.authService.isLoggedIn.set(false);
       }
     });
   }

@@ -41,10 +41,11 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/api/health/**", "/api/market-data/**",
                                                                 "/api/news/**",
-                                                                "/api/stocks/**")
+                                                                "/api/stocks/**",
+                                                                "/api/market/signals")
                                                 .permitAll()
-                                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**",
-                                                                "/swagger-ui.html")
+                                                .requestMatchers("/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+                                                                "/swagger-ui.html", "/api-docs", "/api-docs/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(ex -> ex
