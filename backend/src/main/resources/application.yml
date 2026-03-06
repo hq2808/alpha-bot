@@ -75,6 +75,17 @@ springdoc:
     path: /api-docs
     enabled: ${SPRINGDOC_ENABLED:true}
 
+# AI Assistant Config (Groq via OpenAI compatible API)
+langchain4j:
+  openai:
+    chat-model:
+      base-url: https://api.groq.com/openai/v1
+      api-key: ${GROQ_API_KEY:gsk_placeholder}
+      model-name: llama-3.3-70b-versatile
+      temperature: 0.1
+      log-requests: true
+      log-responses: true
+
 ---
 spring:
   config:
@@ -86,13 +97,4 @@ springdoc:
   swagger-ui:
     enabled: false
 
-# AI Assistant Config (Groq via OpenAI compatible API)
-langchain4j:
-  openai:
-    chat-model:
-      base-url: https://api.groq.com/openai/v1
-      api-key: ${GROQ_API_KEY:gsk_placeholder}
-      model-name: llama-3.3-70b-versatile
-      temperature: 0.1
-      log-requests: true
-      log-responses: true
+# End of Configuration
